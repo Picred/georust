@@ -2,6 +2,7 @@ pub mod database;
 pub mod repository;
 
 use database::init_db;
+use repository::auth_repository::AuthRepository;
 
 use std::env::args;
 
@@ -14,7 +15,14 @@ async fn main() -> Result<(), sqlx::Error> {
     let reset_tables = args.contains(&"--with-init".to_string());
     
 
-    let _db = tokio::spawn(init_db(reset_tables)).await.unwrap()?;
+    let db = tokio::spawn(init_db(reset_tables)).await.unwrap()?;
 
+
+    let ar = AuthRepository::new(db.clone());
+
+
+    ar.create("test", "pswtest").await?;
+
+    
     Ok(())
 }

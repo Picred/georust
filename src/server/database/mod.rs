@@ -7,11 +7,13 @@ use sqlx::{
     sqlite::{SqliteConnectOptions, SqlitePoolOptions},
 };
 
-pub struct Database {
-    pool: Pool<Sqlite>,
+
+#[derive(Clone)]
+pub struct DatabasePool {
+    pub pool: Pool<Sqlite>,
 }
 
-pub async fn init_db(reset_tables: bool) -> Result<Database, sqlx::Error> {
+pub async fn init_db(reset_tables: bool) -> Result<DatabasePool, sqlx::Error> {
     let options = SqliteConnectOptions::from_str("sqlite://src/server/database/database.sqlite")?
         .create_if_missing(true)
         .foreign_keys(true);
@@ -39,8 +41,7 @@ pub async fn init_db(reset_tables: bool) -> Result<Database, sqlx::Error> {
         "CREATE TABLE IF NOT EXISTS vehicles (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT UNIQUE NOT NULL,
-      password TEXT NOT NULL,
-      salt TEXT NOT NULL
+      password TEXT NOT NULL
       );",
     )
     .execute(&pool)
@@ -74,5 +75,5 @@ pub async fn init_db(reset_tables: bool) -> Result<Database, sqlx::Error> {
     .execute(&pool)
     .await?;
 
-    Ok(Database { pool: pool })
+    Ok(DatabasePool { pool: pool })
 }
