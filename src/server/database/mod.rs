@@ -32,7 +32,7 @@ pub async fn init_db(reset_tables: bool) -> Result<Database, sqlx::Error> {
             .execute(&pool)
             .await?; // TODO: valutare se rimuoverla e includere "status" in "vehicles"
 
-        println!("Server resettato");
+        println!("[INFO] Database reset");
     }
 
     sqlx::query(

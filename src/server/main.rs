@@ -7,11 +7,13 @@ use std::env::args;
 
 #[tokio::main]
 async fn main() -> Result<(), sqlx::Error> {
-    let mut _args: Vec<String> = args().skip(1).collect();
+    let args: Vec<String> = args().collect();
 
-    println!("Server avviato");
+    println!("Server running");
 
-    let reset_tables = true;
+    let reset_tables = args.contains(&"--with-init".to_string());
+    
+
     let _db = tokio::spawn(init_db(reset_tables)).await.unwrap()?;
 
     Ok(())
