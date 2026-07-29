@@ -1,5 +1,3 @@
-mod vehicles;
-
 use std::str::FromStr;
 
 use sqlx::{
@@ -36,7 +34,8 @@ pub async fn init_db(reset_tables: bool) -> Result<Pool<Sqlite>, sqlx::Error> {
         "CREATE TABLE IF NOT EXISTS vehicles (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT UNIQUE NOT NULL,
-      password TEXT NOT NULL
+      password TEXT NOT NULL,
+      salt TEXT NOT NULL
       );",
     )
     .execute(&pool)

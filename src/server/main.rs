@@ -2,7 +2,7 @@ pub mod database;
 pub mod repository;
 
 use database::init_db;
-use repository::auth_repository::AuthRepository;
+use repository::vehicles_repository::VehiclesRepository;
 
 use std::env::args;
 
@@ -17,10 +17,11 @@ async fn main() -> Result<(), sqlx::Error> {
     let pool = init_db(reset_tables).await?;
 
 
-    let auth_repository = AuthRepository::new(pool.clone());
+    let vehicles_repository = VehiclesRepository::new(pool.clone());
 
 
-    auth_repository.create("test", "pswtest").await?;
+    // vehicles_repository.register_vehicle("test", b"pswtest").await?;
+    vehicles_repository.login_vehicle("test2", b"pswtest").await?;
 
     
     Ok(())
