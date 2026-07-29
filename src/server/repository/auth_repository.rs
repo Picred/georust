@@ -1,11 +1,12 @@
-use crate::database::DatabasePool;
+use sqlx::{Pool, Sqlite};
+
 
 pub struct AuthRepository {
-    pub pool: DatabasePool,
+    pub pool: Pool<Sqlite>,
 }
 
 impl AuthRepository {
-    pub fn new(pool: DatabasePool) -> Self {
+    pub fn new(pool: Pool<Sqlite>) -> Self {
         Self { pool }
     }
 
@@ -13,7 +14,7 @@ impl AuthRepository {
         let result = sqlx::query("INSERT INTO vehicles(username, password) VALUES (?,?);")
             .bind(username)
             .bind(password)
-            .execute(&self.pool.pool)
+            .execute(&self.pool)
             .await?;
 
         Ok(result.rows_affected() > 0)

@@ -13,15 +13,14 @@ async fn main() -> Result<(), sqlx::Error> {
     println!("Server running");
 
     let reset_tables = args.contains(&"--with-init".to_string());
-    
 
-    let db = tokio::spawn(init_db(reset_tables)).await.unwrap()?;
-
-
-    let ar = AuthRepository::new(db.clone());
+    let pool = init_db(reset_tables).await?;
 
 
-    ar.create("test", "pswtest").await?;
+    let auth_repository = AuthRepository::new(pool.clone());
+
+
+    auth_repository.create("test", "pswtest").await?;
 
     
     Ok(())
