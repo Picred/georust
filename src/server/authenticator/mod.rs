@@ -21,18 +21,13 @@ impl Authenticator {
         Ok(password_hash)
     }
 
-    pub fn verify_password(
-        input_password: &[u8],
-        stored_password: String,
-    ) -> Result<bool, sqlx::Error> {
+    pub fn verify_password(input_password: &[u8], stored_password: String) -> bool {
         let parsed_hash = match PasswordHash::new(&stored_password) {
             Ok(hash) => hash,
-            Err(_) => return Ok(false), // Hash nel DB corrotto o non valido
+            Err(_) => return false, // Hash nel DB corrotto o non valido
         };
 
         let argon2 = Argon2::default();
-        let is_valid_password = argon2.verify_password(input_password, &parsed_hash).is_ok();
-
-        Ok(is_valid_password)
+        argon2.verify_password(input_password, &parsed_hash).is_ok()
     }
 }

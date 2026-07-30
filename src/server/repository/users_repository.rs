@@ -1,10 +1,12 @@
-use argon2::{
-    Argon2,
-    password_hash::{PasswordHash, PasswordVerifier},
-};
 use sqlx::{Pool, Sqlite};
 
 use crate::authenticator::Authenticator;
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum AuthenticationStatus {
+    Success,
+    InvalidCredentials,
+}
 
 pub struct UsersRepository {
     pub pool: Pool<Sqlite>,
@@ -31,24 +33,18 @@ impl UsersRepository {
         &self,
         username: &str,
         password: &[u8],
-    ) -> Result<bool, sqlx::Error> {
+    ) -> Result<AuthenticationStatus, sqlx::Error> {
         let stored_password = match self.get_password_by_username(username).await {
             Ok(row_hash) => row_hash,
-            Err(e) => {
-                println!("[DEBUG] Errore, username non trovato: {:?}", e);
-                return Ok(false);
-            }
+            Err(sqlx::Error::RowNotFound) => return Ok(AuthenticationStatus::InvalidCredentials),
+            Err(e) => return Err(e), // Se il DB cade, lanciamo l'errore vero e proprio!
         };
 
-        let is_valid_password = Authenticator::verify_password(password, stored_password)?;
-
-        if is_valid_password {
-            println!("[DEBUG] Password corretta")
+        if Authenticator::verify_password(password, stored_password) {
+            Ok(AuthenticationStatus::Success)
         } else {
-            println!("[DEBUG] Password errata")
+            Ok(AuthenticationStatus::InvalidCredentials)
         }
-
-        Ok(is_valid_password)
     }
 
     async fn get_password_by_username(&self, username: &str) -> Result<String, sqlx::Error> {

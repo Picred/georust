@@ -1,11 +1,13 @@
+pub mod authenticator;
 pub mod database;
 pub mod repository;
-pub mod authenticator;
 
 use database::init_db;
 use repository::users_repository::UsersRepository;
 
 use std::env::args;
+
+use crate::repository::users_repository::AuthenticationStatus;
 
 #[tokio::main]
 async fn main() -> Result<(), sqlx::Error> {
@@ -22,19 +24,11 @@ async fn main() -> Result<(), sqlx::Error> {
         users_repository.insert_user("test", b"pswtest").await?;
     }
 
-    let login_result = users_repository.validate_user_credentials("test", b"pswtest").await;
-
-    match login_result {
-        Ok(credentials_were_correct) => {
-            if credentials_were_correct {
-                println!("Logged in")
-            } else {
-                println!("Incorrect credentials")
-            }
-        }
-        Err(e) => println!("Something happened: {:?}", e),
+    match users_repository.validate_user_credentials("test", b"pswtest").await{
+        Ok(AuthenticationStatus::Success) => println!("Logged in!"),
+        Ok(AuthenticationStatus::InvalidCredentials) => println!("Incorrect credentials"),
+        Err(e) => println!("Database error: {:?}", e),
     }
-
 
     Ok(())
 }
