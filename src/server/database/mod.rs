@@ -17,7 +17,7 @@ pub async fn init_db(reset_tables: bool) -> Result<Pool<Sqlite>, sqlx::Error> {
         .await?;
 
     if reset_tables {
-        sqlx::query("DROP TABLE IF EXISTS vehicles")
+        sqlx::query("DROP TABLE IF EXISTS users")
             .execute(&pool)
             .await?;
         sqlx::query("DROP TABLE IF EXISTS journeys")
@@ -31,11 +31,10 @@ pub async fn init_db(reset_tables: bool) -> Result<Pool<Sqlite>, sqlx::Error> {
     }
 
     sqlx::query(
-        "CREATE TABLE IF NOT EXISTS vehicles (
+        "CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT UNIQUE NOT NULL,
-      password TEXT NOT NULL,
-      salt TEXT NOT NULL
+      password TEXT NOT NULL
       );",
     )
     .execute(&pool)
@@ -44,13 +43,13 @@ pub async fn init_db(reset_tables: bool) -> Result<Pool<Sqlite>, sqlx::Error> {
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS journeys (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      vehicle_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
       lat REAL NOT NULL,
       lon REAL NOT NULL,
       current_speed REAL NOT NULL,
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-      FOREIGN KEY(vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
       );",
     )
     .execute(&pool)
@@ -59,11 +58,11 @@ pub async fn init_db(reset_tables: bool) -> Result<Pool<Sqlite>, sqlx::Error> {
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS vehicle_status (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      vehicle_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
       status TEXT,
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-      FOREIGN KEY(vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
       );",
     )
     .execute(&pool)
