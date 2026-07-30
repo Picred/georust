@@ -1,5 +1,6 @@
 pub mod database;
 pub mod repository;
+pub mod authenticator;
 
 use database::init_db;
 use repository::users_repository::UsersRepository;
@@ -18,10 +19,10 @@ async fn main() -> Result<(), sqlx::Error> {
     let users_repository = UsersRepository::new(pool.clone());
 
     if reset_tables {
-        users_repository.register_user("test", b"pswtest").await?;
+        users_repository.insert_user("test", b"pswtest").await?;
     }
 
-    let login_result = users_repository.login_user("test", b"pswtest").await;
+    let login_result = users_repository.validate_user_credentials("test", b"pswtest").await;
 
     match login_result {
         Ok(credentials_were_correct) => {
