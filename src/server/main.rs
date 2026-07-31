@@ -1,13 +1,14 @@
 pub mod authenticator;
 pub mod database;
-pub mod repository;
 pub mod models;
+pub mod repository;
 
 use database::init_db;
 use std::env::args;
 
 use repository::journeys_repository::JourneysRepository;
 
+use crate::repository::users_repository::{self, UsersRepository};
 
 #[tokio::main]
 async fn main() -> Result<(), sqlx::Error> {
@@ -17,16 +18,19 @@ async fn main() -> Result<(), sqlx::Error> {
 
     let reset_tables = args.contains(&"--with-init".to_string());
     let pool = init_db(reset_tables).await?;
+    let users_repository = UsersRepository::new(pool.clone());
+    if reset_tables {
+        users_repository.insert_user("test", b"pswtest").await?;
+    }
 
-    
     let journeys_repository = JourneysRepository::new(pool.clone());
 
-    journeys_repository.insert_journey(2, 16.2, 23.6, 51.0).await?;
+    journeys_repository.insert_journey(1, 16.2, 23.6).await?;
     let journeys = journeys_repository.get_full_journey_by_user_id(2).await?;
 
     for journey in journeys {
         println!("all journeys of user 2: {:?}", journey);
     }
-    
+
     Ok(())
 }

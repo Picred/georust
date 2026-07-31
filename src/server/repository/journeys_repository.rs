@@ -16,14 +16,12 @@ impl JourneysRepository {
         user_id: i32,
         lat: f64,
         lon: f64,
-        current_speed: f64,
     ) -> Result<(), sqlx::Error> {
-        let sql = "INSERT INTO journeys(user_id, lat, lon, current_speed) VALUES (?, ?, ?, ?);";
+        let sql = "INSERT INTO journeys(user_id, lat, lon) VALUES (?, ?, ?);";
         sqlx::query(sql)
             .bind(user_id)
             .bind(lat)
             .bind(lon)
-            .bind(current_speed)
             .execute(&self.pool)
             .await?;
 
