@@ -33,7 +33,7 @@ async fn main() -> Result<(), sqlx::Error> {
     let users_repository = UsersRepository::new(pool.clone());
 
     if reset_tables {
-        users_repository.insert_user("test", b"pswtest").await?;
+        let inserted_user_id = users_repository.insert_user("test", b"pswtest").await?;
     }
 
     match users_repository.validate_user_credentials("test", b"pswtest").await{
@@ -79,8 +79,11 @@ async fn main() -> Result<(), sqlx::Error> {
     let journeys = journeys_repository.get_full_journey_by_user_id(1).await?;
 
     for journey in journeys{
-            println!("all journeys of user 1: {:?}", journey);
-        }
+        println!("all journeys of user 1: {:?}", journey);
+    }
+
+    let journey = journeys_repository.get_journey_by_id(1).await?;
+    println!("Journey: {:?}", journey);
     Ok(())
 }
 ```

@@ -40,4 +40,11 @@ impl JourneysRepository {
 
         Ok(journeys)
     }
+
+    pub async fn get_journey_by_id(&self, id: i32) -> Result<Journey, sqlx::Error>{
+        let sql = "SELECT * FROM journeys WHERE id = ?;";
+        let journey: Journey = sqlx::query_as(sql).bind(id).fetch_one(&self.pool).await?;
+
+        Ok(journey)
+    }
 }

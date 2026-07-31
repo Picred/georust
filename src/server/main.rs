@@ -8,7 +8,7 @@ use std::env::args;
 
 use repository::journeys_repository::JourneysRepository;
 
-use crate::repository::users_repository::{self, UsersRepository};
+use crate::repository::users_repository::UsersRepository;
 
 #[tokio::main]
 async fn main() -> Result<(), sqlx::Error> {
@@ -25,12 +25,9 @@ async fn main() -> Result<(), sqlx::Error> {
 
     let journeys_repository = JourneysRepository::new(pool.clone());
 
-    journeys_repository.insert_journey(1, 16.2, 23.6).await?;
-    let journeys = journeys_repository.get_full_journey_by_user_id(2).await?;
+    let journey = journeys_repository.get_journey_by_id(2).await?;
 
-    for journey in journeys {
-        println!("all journeys of user 2: {:?}", journey);
-    }
+    println!("Journey: {:?}", journey);
 
     Ok(())
 }

@@ -17,7 +17,7 @@ impl UsersRepository {
         Self { pool }
     }
 
-    pub async fn insert_user(&self, username: &str, password: &[u8]) -> Result<bool, sqlx::Error> {
+    pub async fn insert_user(&self, username: &str, password: &[u8]) -> Result<i64, sqlx::Error> {
         let password_hash = Authenticator::encrypt_password(password)?;
 
         let result = sqlx::query("INSERT INTO users(username, password) VALUES (?, ?);")
@@ -26,7 +26,7 @@ impl UsersRepository {
             .execute(&self.pool)
             .await?;
 
-        Ok(result.rows_affected() > 0)
+        Ok(result.last_insert_rowid())
     }
 
     pub async fn validate_user_credentials(
