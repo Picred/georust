@@ -1,5 +1,6 @@
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Lines};
+use std::path::PathBuf;
 
 use G19::utils::coord::{Coordinates};
 
@@ -10,7 +11,7 @@ pub struct CoordGenerator {
 impl CoordGenerator {
     
     pub fn init(path: &str) -> io::Result<Self> {
-        let file = File::open(path)?;
+        let file = File::open(PathBuf::from(path))?;
         let reader = BufReader::new(file);
         Ok(CoordGenerator {
             lines: reader.lines(),
