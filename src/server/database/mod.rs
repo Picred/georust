@@ -46,8 +46,7 @@ pub async fn init_db(reset_tables: bool) -> Result<Pool<Sqlite>, sqlx::Error> {
       user_id INTEGER NOT NULL,
       lat REAL NOT NULL,
       lon REAL NOT NULL,
-      current_speed REAL NOT NULL,
-      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      pos_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
       FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
       );",
