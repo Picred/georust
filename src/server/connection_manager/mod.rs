@@ -31,9 +31,9 @@ use tokio_tungstenite::accept_async;
 use futures_util::{StreamExt, SinkExt};
 use tokio_tungstenite::tungstenite::Message;
 use uuid::Uuid;
-
+use utils::server_state::ServerState;
 use serde::{Deserialize, Serialize};
-use crate::users_repository::{UsersRepository, AuthenticationStatus};
+use repository::users_repository::{UsersRepository, AuthenticationStatus};
 
 // struct per la ocmunicazione in fase di login/register
 #[derive(Deserialize)]
@@ -71,12 +71,14 @@ pub struct ActiveSocket {
 pub struct ConnectionManager {
     // mappa dei socket per collegare ogni ActiveSocket a un codice univoco socket_id (di tipo Uuid)
     pub sockets: Arc<RwLock<HashMap<Uuid, ActiveSocket>>>,
+    pub state: Arc<ServerState>,
 }
 
 impl ConnectionManager {
-    pub fn new() -> Self {
+    pub fn new(pool: Pool<Sqlite>) -> Self {
         Self {
             sockets: Arc::new(RwLock::new(HashMap::new())),
+            state: Arc::new(ServerState::new(pool)),
         }
     }
 
@@ -168,7 +170,7 @@ impl ConnectionManager {
 
                     // CASO LOGIN
                     "login" => {
-                        match self.users_repo.validate_user_credentials(&auth_data.username, auth_data.password.as_bytes()).await {
+                        match self.state.users_repo.validate_user_credentials(&auth_data.username, auth_data.password.as_bytes()).await {
 
                             // Caso di SUCCESSO
                             Ok(AuthenticationStatus::Success(id)) => {
@@ -212,7 +214,7 @@ impl ConnectionManager {
 
                     // CASO REGISTRAZIONE
                     "register" => {
-                        match self.users_repo.insert_user(&auth_data.username, auth_data.password.as_bytes()).await {
+                        match self.state.users_repo.insert_user(&auth_data.username, auth_data.password.as_bytes()).await {
 
                             // Caso di SUCCESSO
                             Ok(id) => {
@@ -284,15 +286,11 @@ impl ConnectionManager {
                             break; // Esce dal loop di selezione
                         }
                         _ => {
-                            let _ = tx.send(Message::Text(
-                                "{\"error\":\"Modalità non valida. Usa 'tracking' o 'statistics'\"}".into()
-                            )).await;
+                            let _ = tx.send(Message::Text("{\"error\":\"Modalità non valida. Usa 'tracking' o 'statistics'\"}".into())).await;
                         }
                     }
                 } else {
-                    let _ = tx.send(Message::Text(
-                        "{\"error\":\"Formato non valido. Invia un JSON tipo: {\\\"mode\\\": \\\"tracking\\\"}\"}".into()
-                    )).await;
+                    let _ = tx.send(Message::Text("{\"error\":\"Formato non valido. Invia un JSON tipo: {\\\"mode\\\": \\\"tracking\\\"}\"}".into())).await;
                 }
             }
         }
@@ -304,7 +302,7 @@ impl ConnectionManager {
             Some(Mode::Tracking) => {
                 let _ = tx.send(Message::Text("{\"status\":\"success\",\"message\":\"Modalità Tracking avviata. Invia coordinate o 'STOP'\"}".into())).await;
                 // AVVIO del task per il tracking (per ricezione ed inserimento delle coordinate nel db)
-                // TODO
+                self.handle_journey_tracking(&mut ws_receiver, tx.clone(), &user_id, state).await?;
             }
             Some(Mode::Statistics) => {
                 let _ = tx.send(Message::Text("{\"status\":\"success\",\"message\":\"Modalità Statistiche avviata.\"}".into())).await;

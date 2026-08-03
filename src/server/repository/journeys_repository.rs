@@ -55,12 +55,4 @@ impl JourneysRepository {
             .await?;
         Ok(journey)
     }
-
-
-
-
-
-
-
-
 }
