@@ -25,15 +25,16 @@ Il sistema si divide in:
 
 use std::collections::HashMap;  
 use std::sync::Arc;
+use sqlx::{Pool, Sqlite};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{mpsc, RwLock};
 use tokio_tungstenite::accept_async;
 use futures_util::{StreamExt, SinkExt};
 use tokio_tungstenite::tungstenite::Message;
 use uuid::Uuid;
-use utils::server_state::ServerState;
+use super::repository::server_state::ServerState;
 use serde::{Deserialize, Serialize};
-use repository::users_repository::{UsersRepository, AuthenticationStatus};
+use crate::repository::users_repository::{UsersRepository, AuthenticationStatus};
 
 // struct per la ocmunicazione in fase di login/register
 #[derive(Deserialize)]

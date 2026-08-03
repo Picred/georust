@@ -1,8 +1,10 @@
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Lines};
 use std::path::PathBuf;
+use chrono::Utc;
 
-use G19::utils::coord::{Coordinates};
+
+use G19::utils::coordinates::{Coordinates};
 
 pub struct CoordGenerator {
     lines: Lines<BufReader<File>>,
@@ -37,7 +39,8 @@ impl CoordGenerator {
             let lon = words.next().and_then(|s| s.parse::<f32>().ok());
 
             if let (Some(lat), Some(lon)) = (lat, lon) {
-                return Some(Coordinates::new(lat, lon));
+                let formatted = format!("{}", Utc::now().format("%Y-%m-%d %H:%M:%S"));
+                return Some(Coordinates::new(lat, lon, formatted));
             }
         }
     }

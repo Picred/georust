@@ -1,5 +1,6 @@
-use sqlx::{Pool, Row, Sqlite, sqlite::SqliteRow};
+use sqlx::{Pool, Sqlite};
 use tokio::sync::Mutex;
+use G19::utils::journey_waypoints::JourneyWaypoint;
 
 pub struct JourneysRepository {
     pub pool: Pool<Sqlite>,
@@ -47,9 +48,9 @@ impl JourneysRepository {
     pub async fn get_full_journey_by_journey_id(
         &self,
         journey_id: i32,
-    ) -> Result<Vec<JourneyWaypoints>, sqlx::Error> {
+    ) -> Result<Vec<JourneyWaypoint>, sqlx::Error> {
         let sql = "SELECT * FROM journeys WHERE id = ? ORDER BY pos_time ASC;";
-        let journey: Vec<JourneyWaypoints> = sqlx::query_as(sql)
+        let journey: Vec<JourneyWaypoint> = sqlx::query_as(sql)
             .bind(user_id)
             .fetch_all(&self.pool)
             .await?;

@@ -17,7 +17,7 @@ impl UsersRepository {
         Self { pool }
     }
 
-    pub async fn insert_user(&self, username: &str, password: &[u8]) -> Result<i32, sqlx::Error> {
+    pub async fn insert_user(&self, username: &str, password: &[u8]) -> Result<i64, sqlx::Error> {
         let password_hash = Authenticator::encrypt_password(password)?;
 
         let result = sqlx::query("INSERT INTO users(username, password) VALUES (?, ?);")
@@ -53,6 +53,6 @@ impl UsersRepository {
         sqlx::query_as::<(i32, String), _>("SELECT id, password FROM users WHERE username = ?;")
             .bind(username)
             .fetch_one(&self.pool)
-            .await
+            .await?
     }
 }

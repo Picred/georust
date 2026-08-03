@@ -1,15 +1,13 @@
 pub mod authenticator;
 pub mod database;
-pub mod utils;
 pub mod repository;
 pub mod connection_manager;
 
 use database::init_db;
-use std::env::args;
+use sqlx::{Pool, Sqlite};
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use connection_manager::ConnectionManager;
-use utils::ServerState;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -27,7 +25,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let listener = TcpListener::bind(&addr).await?;
 
     // Avvio del Task Dispatcher
-    manager.run(listener, ServerState).await;
+    manager.run(listener).await;
 
     Ok(())
 }
