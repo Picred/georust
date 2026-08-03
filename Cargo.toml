@@ -13,9 +13,22 @@ name = "client"
 path = "src/client/main.rs"
 
 [dependencies]
-argon2 = { version = "0.5.3", features = ["std"] }
+
+tokio = { version = "1", features = ["full"] }
+
+# gestione WebSocket asincroni per Tokio
+tokio-tungstenite = "0.26"
+
+# SQLx configurato specificamente per SQLite
 sqlx = { version = "0.9.0", features = [
     "runtime-tokio",
     "sqlite"
 ] }
-tokio = { version = "1.53.1", features = ["full"] }
+
+# per la crittografia nell'autenticazione
+argon2 = { version = "0.5.3", features = ["std"] }
+
+# per gestire JSON
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+

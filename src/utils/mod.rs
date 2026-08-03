@@ -1,2 +1,2 @@
-pub mod coord;
-pub mod logging;
+pub mod coordinates;
+pub mod journey_waypoints;

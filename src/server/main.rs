@@ -1,33 +1,33 @@
 pub mod authenticator;
 pub mod database;
-pub mod models;
+pub mod utils;
 pub mod repository;
+pub mod connection_manager;
 
 use database::init_db;
 use std::env::args;
-
-use repository::journeys_repository::JourneysRepository;
-
-use crate::repository::users_repository::UsersRepository;
+use std::sync::Arc;
+use tokio::net::TcpListener;
+use connection_manager::ConnectionManager;
+use utils::ServerState;
 
 #[tokio::main]
-async fn main() -> Result<(), sqlx::Error> {
-    let args: Vec<String> = args().collect();
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
-    println!("Server running");
+    // inizializzo il db
+    let pool:Pool<Sqlite> = init_db(false).await?;
 
-    let reset_tables = args.contains(&"--with-init".to_string());
-    let pool = init_db(reset_tables).await?;
-    let users_repository = UsersRepository::new(pool.clone());
-    if reset_tables {
-        users_repository.insert_user("test", b"pswtest").await?;
-    }
+    // Creazione del ConnectionManager
+    let manager = Arc::new(ConnectionManager::new(pool));
 
-    let journeys_repository = JourneysRepository::new(pool.clone());
+    // Legge l'indirizzo da una variabile d'ambiente, altrimenti usa 0.0.0.0:8080 di default
+    let addr = std::env::var("SERVER_ADDR").unwrap_or_else(|_| "0.0.0.0:8080".to_string());
 
-    let journey = journeys_repository.get_journey_by_id(2).await?;
+    // Avvio del server TCP
+    let listener = TcpListener::bind(&addr).await?;
 
-    println!("Journey: {:?}", journey);
+    // Avvio del Task Dispatcher
+    manager.run(listener, ServerState).await;
 
     Ok(())
 }
