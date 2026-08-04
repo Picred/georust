@@ -10,16 +10,9 @@
 ```rust
 // src/server/main.rs
 
-pub mod authenticator;
-pub mod database;
-pub mod repository;
-
-use database::init_db;
-use repository::users_repository::UsersRepository;
-
 use std::env::args;
-
-use crate::repository::users_repository::AuthenticationStatus;
+use database::init_db;
+use repository::users_repository::{UsersRepository, AuthenticationStatus};
 
 #[tokio::main]
 async fn main() -> Result<(), sqlx::Error> {
@@ -33,11 +26,11 @@ async fn main() -> Result<(), sqlx::Error> {
     let users_repository = UsersRepository::new(pool.clone());
 
     if reset_tables {
-        let inserted_user_id = users_repository.insert_user("test", b"pswtest").await?;
+        let _inserted_user_id = users_repository.insert_user("test", b"pswtest").await?;
     }
 
     match users_repository.validate_user_credentials("test", b"pswtest").await{
-        Ok(AuthenticationStatus::Success) => println!("Logged in!"),
+        Ok(AuthenticationStatus::Success(user_id)) => println!("Logged in! user = {}", user_id ),
         Ok(AuthenticationStatus::InvalidCredentials) => println!("Incorrect credentials"),
         Err(e) => println!("Database error: {:?}", e),
     }

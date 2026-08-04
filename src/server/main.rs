@@ -1,31 +1,19 @@
+// DEVELOPMENT
+// -----------------------
+// Non cancellabile
 pub mod authenticator;
 pub mod database;
+pub mod models;
 pub mod repository;
-pub mod connection_manager;
+// -----------------------
 
-use database::init_db;
-use sqlx::{Pool, Sqlite};
-use std::sync::Arc;
-use tokio::net::TcpListener;
-use connection_manager::ConnectionManager;
+use std::env::args;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), sqlx::Error> {
+    let _args: Vec<String> = args().collect();
 
-    // inizializzo il db
-    let pool:Pool<Sqlite> = init_db(false).await?;
-
-    // Creazione del ConnectionManager
-    let manager = Arc::new(ConnectionManager::new(pool));
-
-    // Legge l'indirizzo da una variabile d'ambiente, altrimenti usa 0.0.0.0:8080 di default
-    let addr = std::env::var("SERVER_ADDR").unwrap_or_else(|_| "0.0.0.0:8080".to_string());
-
-    // Avvio del server TCP
-    let listener = TcpListener::bind(&addr).await?;
-
-    // Avvio del Task Dispatcher
-    manager.run(listener).await;
+    println!("Server running");
 
     Ok(())
 }

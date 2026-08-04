@@ -1,10 +1,10 @@
-use sqlx::{Pool, Sqlite};
+use sqlx::{Pool, Sqlite, Row};
 
 use crate::authenticator::Authenticator;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum AuthenticationStatus {
-    Success,
+    Success(i64),
     InvalidCredentials,
 }
 
@@ -34,23 +34,33 @@ impl UsersRepository {
         username: &str,
         password: &[u8],
     ) -> Result<AuthenticationStatus, sqlx::Error> {
-        let stored_password = match self.get_password_by_username(username).await {
+        let (user_id, stored_password) = match self.get_password_and_id_by_username(username).await {
             Ok(row_hash) => row_hash,
             Err(sqlx::Error::RowNotFound) => return Ok(AuthenticationStatus::InvalidCredentials),
-            Err(e) => return Err(e), // Se il DB cade, lanciamo l'errore vero e proprio!
+            Err(e) => return Err(e)
         };
 
+        println!("[DEBUG] id: {}, stored_password: {}", user_id, stored_password);
+
         if Authenticator::verify_password(password, stored_password) {
-            Ok(AuthenticationStatus::Success)
+            Ok(AuthenticationStatus::Success(user_id))
         } else {
             Ok(AuthenticationStatus::InvalidCredentials)
         }
     }
 
-    async fn get_password_by_username(&self, username: &str) -> Result<String, sqlx::Error> {
-        sqlx::query_scalar("SELECT password FROM users WHERE username = ?;")
-            .bind(username)
-            .fetch_one(&self.pool)
-            .await
+    async fn get_password_and_id_by_username(&self, username: &str) -> Result<(i64, String), sqlx::Error> {
+        let sql = "SELECT id, password FROM users WHERE username = ?;";
+        let row = sqlx::query(sql).bind(username).fetch_one(&self.pool).await?;
+
+        let user_id: i64 = row.get(0);
+        let stored_password: String = row.get(1);
+
+
+        Ok((user_id, stored_password))
+        // sqlx::query_scalar("SELECT id, password FROM users WHERE username = ?;")
+        //     .bind(username)
+        //     .fetch_one(&self.pool)
+        //     .await
     }
 }
