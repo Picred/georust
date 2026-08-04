@@ -4,7 +4,7 @@ use crate::authenticator::Authenticator;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum AuthenticationStatus {
-    Success(i32),
+    Success,
     InvalidCredentials,
 }
 
@@ -34,25 +34,23 @@ impl UsersRepository {
         username: &str,
         password: &[u8],
     ) -> Result<AuthenticationStatus, sqlx::Error> {
-        let (user_id, stored_password) = match self.get_user_data_by_username(username).await {
-            Ok(data) => data,
+        let stored_password = match self.get_password_by_username(username).await {
+            Ok(row_hash) => row_hash,
             Err(sqlx::Error::RowNotFound) => return Ok(AuthenticationStatus::InvalidCredentials),
             Err(e) => return Err(e), // Se il DB cade, lanciamo l'errore vero e proprio!
         };
 
         if Authenticator::verify_password(password, stored_password) {
-            Ok(AuthenticationStatus::Success(user_id))
+            Ok(AuthenticationStatus::Success)
         } else {
             Ok(AuthenticationStatus::InvalidCredentials)
         }
     }
 
-
-    // restituisce un result con tupla che contiene user_id e password criptata contenuta nel db relativa a quel user
-    async fn get_user_data_by_username(&self, username: &str) -> Result<(i32, String), sqlx::Error> {
-        sqlx::query_as::<(i32, String), _>("SELECT id, password FROM users WHERE username = ?;")
+    async fn get_password_by_username(&self, username: &str) -> Result<String, sqlx::Error> {
+        sqlx::query_scalar("SELECT password FROM users WHERE username = ?;")
             .bind(username)
             .fetch_one(&self.pool)
-            .await?
+            .await
     }
 }
