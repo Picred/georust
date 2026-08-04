@@ -58,9 +58,93 @@ impl UsersRepository {
 
 
         Ok((user_id, stored_password))
-        // sqlx::query_scalar("SELECT id, password FROM users WHERE username = ?;")
-        //     .bind(username)
-        //     .fetch_one(&self.pool)
-        //     .await
+    }
+}
+
+
+
+
+
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sqlx::SqlitePool;
+
+    // db in ram
+    async fn setup_db() -> SqlitePool {
+        let pool = SqlitePool::connect("sqlite::memory:")
+            .await
+            .expect("errore di connessione al db in ram");
+
+        sqlx::query(
+            "CREATE TABLE users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL UNIQUE,
+                password TEXT NOT NULL
+            );",
+        )
+        .execute(&pool)
+        .await
+        .expect("Impossibile creare la tabella users");
+
+        pool
+    }
+
+    #[tokio::test]
+    async fn test_insert_user_success() {
+        let pool = setup_db().await;
+        let repo = UsersRepository::new(pool);
+
+        let user_id = repo.insert_user("andrei", b"password123").await;
+        assert!(user_id.is_ok());
+        assert_eq!(user_id.unwrap(), 1); // Primo utente inserito deve avere ID 1
+    }
+
+    #[tokio::test]
+    async fn test_validate_credentials_correct_password() {
+        let pool = setup_db().await;
+        let repo = UsersRepository::new(pool);
+
+        let inserted_id = repo
+            .insert_user("andrei", b"password123")
+            .await
+            .unwrap();
+
+        let status = repo
+            .validate_user_credentials("andrei", b"password123")
+            .await
+            .unwrap();
+
+        assert_eq!(status, AuthenticationStatus::Success(inserted_id));
+    }
+
+    #[tokio::test]
+    async fn test_validate_credentials_wrong_password() {
+        let pool = setup_db().await;
+        let repo = UsersRepository::new(pool);
+
+        repo.insert_user("andrei", b"password123").await.unwrap();
+
+        let status = repo
+            .validate_user_credentials("andrei", b"wrong_password")
+            .await
+            .unwrap();
+
+        assert_eq!(status, AuthenticationStatus::InvalidCredentials);
+    }
+
+    #[tokio::test]
+    async fn test_validate_credentials_user_not_found() {
+        let pool = setup_db().await;
+        let repo = UsersRepository::new(pool);
+
+        let status = repo
+            .validate_user_credentials("non_esisto", b"password123")
+            .await
+            .unwrap();
+
+        assert_eq!(status, AuthenticationStatus::InvalidCredentials);
     }
 }
