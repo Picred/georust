@@ -1,3 +1,5 @@
+use std::fmt::format;
+
 use futures_util::{SinkExt, StreamExt};
 use tokio::sync::mpsc;
 use tokio::time::{self, Duration};
@@ -44,19 +46,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut ticker = time::interval(Duration::from_millis(cfg.tick_interval_millis.into()));
     let mut sending = false;
 
+    let mut logged_in = false;
+
     println!("Client console succesfully initialized. Type \"help\" for available commands");
 
     loop {
         tokio::select! {
             _ = ticker.tick() => {
+
+                if !logged_in {
+                    let login_json = r#"{"action":"login","username":"veicolo_test1","password":"password_test"}"#;
+                    out_tx.send(Message::Text(login_json.into())).await.unwrap();
+                    logged_in = true;
+                }
+                 
                 if !sending {
                     continue;
                 }
 
                 match generator.get_next() {
                     Some(coord) => {
-                        let payload = format!("{:?}", coord);
-                        if out_tx.send(Message::Text(payload)).await.is_err() {
+                        let json = serde_json::to_string(&coord).expect("failed to serialize coord");
+                        if out_tx.send(Message::Text(json)).await.is_err() {
                             eprintln!("Outgoing channel closed, stopping.");
                             break;
                         }

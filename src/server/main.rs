@@ -10,26 +10,22 @@ pub mod statistics;
 pub mod connection_manager;
 pub mod journey_tracking;
 
-use std::env::args;
+use database::init_db;
+use std::sync::Arc;
+use tokio::net::TcpListener;
+use sqlx::{Pool, Sqlite};
 
-use crate::statistics::{Statistics, RequiredTimeFrame};
+use crate::{connection_manager::ConnectionManager};
 
 #[tokio::main]
 async fn main() -> Result<(), sqlx::Error> {
-    let _args: Vec<String> = args().collect();
 
-    let stats = Statistics::new(RequiredTimeFrame::CurrentDay);
-    // let mut stats = Statistics::new(RequiredTimeFrame::CurrentWeek);
-    // let mut stats = Statistics::new(RequiredTimeFrame::CurrentMonth);
+    let pool:Pool<Sqlite> = init_db(false).await?;
+    let manager = Arc::new(ConnectionManager::new(pool));
+    let addr = "127.0.0.1:9001".to_string();
+    let listener = TcpListener::bind(&addr).await?;
+    manager.run(listener).await;
 
-    // println!("Initial timeframe {:?}", stats.get_timeframe());
-    // stats.set_timeframe(RequiredTimeFrame::CurrentWeek);
-    // println!("Updated timeframe {:?}", stats.get_timeframe());
-
-
-    let range = stats.convert_timeframe_to_range();
-
-    println!("{:?}", range);
     Ok(())
 }
 
