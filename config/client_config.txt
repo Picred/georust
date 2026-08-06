@@ -2,3 +2,4 @@ coord_file_path = ./data/coordinates.txt
 tick_interval_millis = 500
 client_username = client1
 client_password = password1
+server_url = ws://127.0.0.1:9001

@@ -6,7 +6,7 @@ pub struct Coordinates {
 }
 
 impl Coordinates {
-    pub fn new(lat: f64, lon: f64, created_at: String) -> Coordinates {
-        Coordinates {lat: lat, lon: lon, created_at: created_at,}
+    pub fn new(lat: f64, lon: f64, pos_time: String)->Coordinates {
+        Coordinates {lat: lat, lon: lon, created_at: pos_time,}
     }
 }
