@@ -35,8 +35,8 @@ impl CoordGenerator {
             }
 
             let mut words = line.split_whitespace();
-            let lat = words.next().and_then(|s| s.parse::<f32>().ok());
-            let lon = words.next().and_then(|s| s.parse::<f32>().ok());
+            let lat = words.next().and_then(|s| s.parse::<f64>().ok());
+            let lon = words.next().and_then(|s| s.parse::<f64>().ok());
 
             if let (Some(lat), Some(lon)) = (lat, lon) {
                 let formatted = format!("{}", Utc::now().format("%Y-%m-%d %H:%M:%S"));
