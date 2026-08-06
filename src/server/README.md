@@ -45,38 +45,36 @@ async fn main() -> Result<(), sqlx::Error> {
 ```rust
 // src/server/main.rs
 
-pub mod authenticator;
-pub mod database;
-pub mod repository;
-pub mod models;
-
-use database::init_db;
 use std::env::args;
-
 use repository::journeys_repository::JourneysRepository;
-
+use database::init_db;
+use repository::users_repository::UsersRepository;
 
 #[tokio::main]
 async fn main() -> Result<(), sqlx::Error> {
-    let args: Vec<String> = args().collect();
+    let _args: Vec<String> = args().collect();
 
     println!("Server running");
 
-    let reset_tables = args.contains(&"--with-init".to_string());
+    let reset_tables = _args.contains(&"--with-init".to_string());
     let pool = init_db(reset_tables).await?;
 
-    
+    let users_repository = UsersRepository::new(pool.clone());
     let journeys_repository = JourneysRepository::new(pool.clone());
 
-    journeys_repository.insert_journey(1, 16.2, 23.6, 51.0).await?;
-    let journeys = journeys_repository.get_full_journey_by_user_id(1).await?;
+    if reset_tables {
+        let inserted_user_id = users_repository.insert_user("test", b"pswtest").await?;
 
-    for journey in journeys{
-        println!("all journeys of user 1: {:?}", journey);
+        journeys_repository.insert_journey_waypoint(inserted_user_id, 45.4642, 9.1900, "2026-08-05 12:00:00".to_string()).await?;
+        journeys_repository.insert_journey_waypoint(inserted_user_id, 45.4650, 9.1950, "2026-08-05 12:15:00".to_string()).await?;
+    
+        let journey= journeys_repository.get_full_journey_by_user_id(inserted_user_id).await?;
+    
+        for journey_waypoint in journey{
+            println!("all journey waipoints of user {}: {:?}", inserted_user_id, journey_waypoint);
+        }
     }
 
-    let journey = journeys_repository.get_journey_by_id(1).await?;
-    println!("Journey: {:?}", journey);
     Ok(())
 }
 ```

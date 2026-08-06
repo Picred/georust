@@ -6,6 +6,8 @@ pub mod database;
 pub mod models;
 pub mod repository;
 // -----------------------
+pub mod connection_manager;
+pub mod journey_tracking;
 
 use std::env::args;
 
@@ -17,3 +19,4 @@ async fn main() -> Result<(), sqlx::Error> {
 
     Ok(())
 }
+

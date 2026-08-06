@@ -1,12 +1,12 @@
-#[derive(Debug)]
+#[derive(Debug, serde::Deserialize)]
 pub struct Coordinates {
-    lat: f32,
-    lon: f32,
-    created_at: String,
+    pub lat: f64,
+    pub lon: f64,
+    pub created_at: String,
 }
 
 impl Coordinates {
-    pub fn new(lat: f32, lon: f32, pos_time: String)->Coordinates {
-        Coordinates {lat: lat, lon: lon, created_at: pos_time,}
+    pub fn new(lat: f64, lon: f64, created_at: String) -> Coordinates {
+        Coordinates {lat: lat, lon: lon, created_at: created_at,}
     }
 }
