@@ -1,26 +1,34 @@
-use console::ConsoleEvent;
 use futures_util::{SinkExt, StreamExt};
 use tokio::sync::mpsc;
 use tokio::time::{self, Duration};
 use tokio_tungstenite::tungstenite::Message;
+use tokio_tungstenite::connect_async;
 
 mod coord_gen;
 use crate::coord_gen::CoordGenerator;
 mod config;
 use config::Config;
 mod console;
+use console::ConsoleEvent;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cfg = Config::load("./config/client_config.txt")
         .map_err(|e| format!("Error while parsing client config file: {} ", e))?;
-    println!("{:?}", cfg);
 
     let mut generator = CoordGenerator::init(&cfg.coord_file_path)
         .map_err(|e| format!("Error while creating CoordGenerator: {} ", e))?;
 
+    println!("Connecting to {}...", cfg.server_url);
+    let (ws_stream, response) = connect_async(&cfg.server_url)
+        .await
+        .map_err(|e| format!("Failed to connect to {}: {e}", cfg.server_url))?;
+    println!("Connected (HTTP status: {})", response.status());
+
     // placeholder websocket r/w stream
-    let (ws_write, ws_read) = dummy_ws_pair();
+    // let (ws_write, ws_read) = dummy_ws_pair();
+
+    let (ws_write, ws_read) = ws_stream.split();
 
     // Channel client->server communication
     let (out_tx, out_rx) = mpsc::channel::<Message>(64);
@@ -81,30 +89,29 @@ async fn writer_task(
     mut rx: mpsc::Receiver<Message>,
 ) {
     while let Some(msg) = rx.recv().await {
-        // if let Err(e) = ws_write.send(msg).await {
-        //     eprintln!("Error sending message: {e}");
-        //     break;
-        // }
-        println!("{msg:?} sent to server");
+        if let Err(e) = ws_write.send(msg).await {
+            eprintln!("Error sending message: {e}");
+            break;
+        }
     }
 }
 
 async fn reader_task(
     mut ws_read: impl StreamExt<Item = Result<Message, tokio_tungstenite::tungstenite::Error>> + Unpin,
 ) {
-    // while let Some(msg) = ws_read.next().await {
-    //     match msg {
-    //         Ok(Message::Text(text)) => println!("\n[server] {text}"),
-    //         Ok(_) => {}
-    //         Err(e) => {
-    //             eprintln!("WebSocket read error: {e}");
-    //             break;
-    //         }
-    //     }
-    // }
-    let _ = &mut ws_read; // placeholder no-op to avoid unused warning
+    while let Some(msg) = ws_read.next().await {
+        match msg {
+            Ok(Message::Text(text)) => println!("\n[server] {text}"),
+            Ok(_) => {}
+            Err(e) => {
+                eprintln!("WebSocket read error: {e}");
+                break;
+            }
+        }
+    }
+    println!("Server connection closed.");
 }
-
+/*
 fn dummy_ws_pair() -> (
     impl SinkExt<Message, Error = tokio_tungstenite::tungstenite::Error> + Unpin,
     impl StreamExt<Item = Result<Message, tokio_tungstenite::tungstenite::Error>> + Unpin,
@@ -113,13 +120,10 @@ fn dummy_ws_pair() -> (
     use futures_util::stream::pending;
     use std::convert::Infallible;
 
-    // `drain()` accepts and discards anything sent to it; its error type is
-    // `Infallible`, so we map it to the tungstenite error type to satisfy the bound.
     let sink = drain().sink_map_err(|e: Infallible| match e {});
 
-    // `pending()` is a stream that never produces an item — perfect stand-in
-    // for "nothing arrives from the server yet."
     let stream = pending::<Result<Message, tokio_tungstenite::tungstenite::Error>>();
 
     (sink, stream)
 }
+*/

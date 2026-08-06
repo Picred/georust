@@ -5,7 +5,8 @@ pub struct Config {
     pub coord_file_path: String,
     pub tick_interval_millis: u32,
     pub client_username: String,
-    pub client_password: String
+    pub client_password: String,
+    pub server_url: String
 }
 
 impl Config {
@@ -26,6 +27,8 @@ impl Config {
             client_username: get(&map, "client_username")?,
 
             client_password: get(&map, "client_password")?,
+
+            server_url: get(&map, "server_url")?,
         })
     }
 }
