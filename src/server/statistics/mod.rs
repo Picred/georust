@@ -1,6 +1,9 @@
 use chrono::{Datelike, Days, Local};
 use std::time::Duration;
 
+use crate::repository::journeys_repository::{JourneysRepository};
+use super::utils::*;
+
 #[derive(Copy, Clone, Debug)]
 pub enum RequiredTimeFrame {
     CurrentDay,
@@ -10,8 +13,8 @@ pub enum RequiredTimeFrame {
 
 #[derive(Debug)]
 pub struct TimeRange {
-    start: String,
-    end: String,
+    pub start: String,
+    pub end: String,
 }
 
 impl TimeRange {
@@ -22,11 +25,12 @@ impl TimeRange {
 
 pub struct Statistics {
     pub timeframe: RequiredTimeFrame,
+    journeys_repository: JourneysRepository
 }
 
 impl Statistics {
-    pub fn new(timeframe: RequiredTimeFrame) -> Self {
-        Self { timeframe }
+    pub fn new(timeframe: RequiredTimeFrame, journeys_repository: JourneysRepository) -> Self {
+        Self { timeframe, journeys_repository}
     }
 
     pub fn set_timeframe(&mut self, new_timeframe: RequiredTimeFrame) {
@@ -73,19 +77,42 @@ impl Statistics {
         }
     }
 
-    async fn get_traveled_distance_by_user_id(&self, user_id: i64) -> f32 {
+    pub async fn get_traveled_distance_by_user_id(&self, user_id: i64) -> f64 {
+        let journeys = self.journeys_repository.get_full_journey_by_user_id(user_id).await.unwrap();
+
+        // TODO: selezionare journeys in base al timeframe scelto in self
+
+        let distance_km = calculate_traveled_distance_of_journeys(&journeys);
+        
+        distance_km
+    }
+
+    pub async fn get_average_speed_by_user_id(&self, user_id: i64){
+        let journeys = self.journeys_repository.get_full_journey_by_user_id(user_id).await.unwrap();
+
+        // TODO: selezionare journeys in base al timeframe scelto in self
+
+
+        let start_created_at = journeys.first().unwrap().created_at.clone();
+        let end_created_at = journeys.last().unwrap().created_at.clone();
+
+        let distance_km = calculate_traveled_distance_of_journeys(&journeys);
+
+        
+        let start_time = convert_sql_to_naive_datetime(start_created_at).unwrap();
+        let end_time = convert_sql_to_naive_datetime(end_created_at).unwrap();
+        
+        println!("{:?}", (end_time - start_time).num_hours());
+
+        todo!()
+        
+    }
+
+    pub async fn get_full_journey_duration_by_user_id(&self, user_id: i64) -> Duration {
         todo!()
     }
 
-    async fn get_average_speed_by_user_id(&self, user_id: i64) -> f32 {
-        todo!()
-    }
-
-    async fn get_full_journey_duration_by_user_id(&self, user_id: i64) -> Duration {
-        todo!()
-    }
-
-    async fn get_pause_duration_by_user_id(&self, user_id: i64) -> Duration {
+    pub async fn get_pause_duration_by_user_id(&self, user_id: i64) -> Duration {
         todo!()
     }
 }
