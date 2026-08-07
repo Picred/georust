@@ -1,25 +1,22 @@
+use std::fmt::format;
 use futures_util::{SinkExt, StreamExt};
 use tokio::sync::mpsc;
 use tokio::time::{self, Duration};
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::connect_async;
-use clap::Parser;
+
 
 mod coord_gen;
 mod config;
 mod console;
 
-use crate::config::Cli;
 use crate::coord_gen::CoordGenerator;
 use config::Config;
 use console::ConsoleEvent;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-
-    let cli = Cli::parse();
-
-    let cfg = Config::load(&cli)
+    let cfg = Config::load("./config/client_config.json")
         .map_err(|e| format!("Error while parsing client config file: {} ", e))?;
 
     println!("{:?}", cfg);
