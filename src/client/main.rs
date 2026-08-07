@@ -1,22 +1,25 @@
 use std::fmt::format;
-
 use futures_util::{SinkExt, StreamExt};
 use tokio::sync::mpsc;
 use tokio::time::{self, Duration};
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::connect_async;
 
+
 mod coord_gen;
-use crate::coord_gen::CoordGenerator;
 mod config;
-use config::Config;
 mod console;
+
+use crate::coord_gen::CoordGenerator;
+use config::Config;
 use console::ConsoleEvent;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let cfg = Config::load("./config/client_config.txt")
+    let cfg = Config::load("./config/client_config.json")
         .map_err(|e| format!("Error while parsing client config file: {} ", e))?;
+
+    println!("{:?}", cfg);
 
     let mut generator = CoordGenerator::init(&cfg.coord_file_path)
         .map_err(|e| format!("Error while creating CoordGenerator: {} ", e))?;
@@ -26,9 +29,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await
         .map_err(|e| format!("Failed to connect to {}: {e}", cfg.server_url))?;
     println!("Connected (HTTP status: {})", response.status());
-
-    // placeholder websocket r/w stream
-    // let (ws_write, ws_read) = dummy_ws_pair();
 
     let (ws_write, ws_read) = ws_stream.split();
 
@@ -122,19 +122,3 @@ async fn reader_task(
     }
     println!("Server connection closed.");
 }
-/*
-fn dummy_ws_pair() -> (
-    impl SinkExt<Message, Error = tokio_tungstenite::tungstenite::Error> + Unpin,
-    impl StreamExt<Item = Result<Message, tokio_tungstenite::tungstenite::Error>> + Unpin,
-) {
-    use futures_util::sink::drain;
-    use futures_util::stream::pending;
-    use std::convert::Infallible;
-
-    let sink = drain().sink_map_err(|e: Infallible| match e {});
-
-    let stream = pending::<Result<Message, tokio_tungstenite::tungstenite::Error>>();
-
-    (sink, stream)
-}
-*/
