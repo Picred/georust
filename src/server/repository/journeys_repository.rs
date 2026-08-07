@@ -39,14 +39,34 @@ impl JourneysRepository {
             .await?;
         Ok(journey)
     }
+
+
+
+    pub async fn get_journey_by_user_id_between_times(
+        &self,
+        user_id: i64,
+        start_time: String,
+        end_time: String,
+    ) -> Result<Vec<JourneyWaypoint>, sqlx::Error> {
+
+        let sql = "SELECT user_id, lat, lon, created_at FROM journeys WHERE user_id = ? AND created_at >= ? AND created_at <= ?;";
+        let journey: Vec<JourneyWaypoint> = sqlx::query_as(sql)
+            .bind(user_id)
+            .bind(start_time)
+            .bind(end_time)
+            .fetch_all(&self.pool)
+            .await?;
+        Ok(journey)
+
+    }
+    
 }
 
 
 
 #[cfg(test)]
 mod tests {
-    //use super::*;
-    use crate::repository::{journeys_repository::JourneysRepository, users_repository::UsersRepository};
+    use super::*;
     use sqlx::SqlitePool;
 
     // db in ram
@@ -105,18 +125,72 @@ mod tests {
 
         let result: Result<i64, sqlx::Error> = users_repo.insert_user("test", b"pswtest").await;
         if let Ok(user_id) = result {
-            // Usiamo ? anche qui per pulizia, dato che la funzione ora restituisce Result
+            // inserimento di tuple in journeys
             journeys_repo.insert_journey_waypoint(user_id, 45.4642, 9.1900, "2026-08-05 12:00:00".to_string()).await.unwrap();
             journeys_repo.insert_journey_waypoint(user_id, 45.4650, 9.1950, "2026-08-05 12:15:00".to_string()).await.unwrap();
             
             let journey = journeys_repo.get_full_journey_by_user_id(user_id).await.unwrap();
             assert_eq!(journey.len(), 2);
-
             assert_eq!(journey[0].lat, 45.4642);
-            // Nota: qui nel tuo codice originale controllavi journey[1].lon con 45.4650 (che era la lat). Corretto in .lat
             assert_eq!(journey[1].lat, 45.4650); 
             assert_eq!(journey[0].created_at, "2026-08-05 12:00:00".to_string());
         }
     }
- 
+
+    #[tokio::test]
+    async fn test_get_journey_by_user_id_between_times_success() {
+        let pool = setup_db().await;
+        let users_repo = UsersRepository::new(pool.clone());
+        let journeys_repo = JourneysRepository::new(pool);
+
+        let result: Result<i64, sqlx::Error> = users_repo.insert_user("test", b"pswtest").await;
+        if let Ok(user_id) = result {
+            // Usiamo ? anche qui per pulizia, dato che la funzione ora restituisce Result
+            journeys_repo.insert_journey_waypoint(user_id, 45.4642, 9.1900, "2026-08-05 12:15:00".to_string()).await.unwrap();
+            journeys_repo.insert_journey_waypoint(user_id, 45.4650, 9.1950, "2026-08-05 12:15:01".to_string()).await.unwrap();
+            journeys_repo.insert_journey_waypoint(user_id, 45.4650, 9.1955, "2026-08-05 12:15:02".to_string()).await.unwrap();
+            journeys_repo.insert_journey_waypoint(user_id, 45.4650, 9.1965, "2026-08-05 12:15:03".to_string()).await.unwrap();
+            journeys_repo.insert_journey_waypoint(user_id, 45.4655, 9.1970, "2026-08-05 12:15:04".to_string()).await.unwrap();
+            journeys_repo.insert_journey_waypoint(user_id, 45.4663, 9.1971, "2026-08-05 12:15:05".to_string()).await.unwrap();
+            
+            let journey = journeys_repo.get_journey_by_user_id_between_times(user_id, "2026-08-05 12:15:01".to_string(), "2026-08-05 12:15:03".to_string()).await.unwrap();
+            for journey_waypoint in &journey {
+                println!("{:?}", journey_waypoint);
+            }
+
+            assert_eq!(journey.len(), 3, "I journey_waypoint non sono 3");
+            assert_eq!(journey[0].lon, 9.1950);
+            assert_eq!(journey[1].lon, 9.1955); 
+            assert_eq!(journey[1].lat, 45.4650); 
+            assert_eq!(journey[2].lon, 9.1965);
+            assert_eq!(journey[0].created_at, "2026-08-05 12:15:01".to_string());
+            assert_eq!(journey[2].created_at, "2026-08-05 12:15:03".to_string());
+        }
+    }
+
+
+    #[tokio::test]
+    async fn test_get_journey_by_user_id_between_times_wrong_start_time() {
+        let pool = setup_db().await;
+        let users_repo = UsersRepository::new(pool.clone());
+        let journeys_repo = JourneysRepository::new(pool);
+
+        let result: Result<i64, sqlx::Error> = users_repo.insert_user("test", b"pswtest").await;
+        if let Ok(user_id) = result {
+            // Usiamo ? anche qui per pulizia, dato che la funzione ora restituisce Result
+            journeys_repo.insert_journey_waypoint(user_id, 45.4642, 9.1900, "2026-08-05 12:15:00".to_string()).await.unwrap();
+            journeys_repo.insert_journey_waypoint(user_id, 45.4650, 9.1950, "2026-08-05 12:15:01".to_string()).await.unwrap();
+            journeys_repo.insert_journey_waypoint(user_id, 45.4650, 9.1955, "2026-08-05 12:15:02".to_string()).await.unwrap();
+            journeys_repo.insert_journey_waypoint(user_id, 45.4650, 9.1965, "2026-08-05 12:15:03".to_string()).await.unwrap();
+            journeys_repo.insert_journey_waypoint(user_id, 45.4655, 9.1970, "2026-08-05 12:15:04".to_string()).await.unwrap();
+            journeys_repo.insert_journey_waypoint(user_id, 45.4663, 9.1971, "2026-08-05 12:15:05".to_string()).await.unwrap();
+            
+            let journey = journeys_repo.get_journey_by_user_id_between_times(user_id, "stat_time sbagliato".to_string(), "2026-08-05 12:15:03".to_string()).await.unwrap();
+            for journey_waypoint in &journey {
+                println!("{:?}", journey_waypoint);
+            }
+
+            assert_eq!(journey.len(), 0, "Ci sono journey_waypoint quando dovrebbero essere 0");
+        }
+    }
 }
