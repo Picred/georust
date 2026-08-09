@@ -47,7 +47,6 @@ struct AuthRequest {
 struct AuthResponse {
     status: String,
     message: String,
-    user_id: Option<i64>,
 }
 
 // La struttura che rappresenta il socket in memoria
@@ -163,7 +162,6 @@ impl ConnectionManager {
                         let err_resp = AuthResponse {
                             status: "error".into(),
                             message: "JSON non valido. Invia le credenziali per accedere.".into(),
-                            user_id: None,
                         };
 
                         // Trasforma in stringa e trasmette l'errore al client
@@ -196,7 +194,6 @@ impl ConnectionManager {
                                 let resp = AuthResponse {
                                     status: "success".into(),
                                     message: format!("Login effettuato! Benvenuto {}", auth_data.username),
-                                    user_id: Some(id),
                                 };
                                 if let Ok(json) = serde_json::to_string(&resp) {
                                     let _ = tx.send(Message::Text(json.into())).await;
@@ -207,13 +204,13 @@ impl ConnectionManager {
 
                             // Caso di INSUCESSO per CREDENTIALI NON VALIDE
                             Ok(AuthenticationStatus::InvalidCredentials) => {
-                                let resp = AuthResponse { status: "error".into(), message: "Username o password errati.".into(), user_id: None };
+                                let resp = AuthResponse { status: "error".into(), message: "Username o password errati.".into(),};
                                 if let Ok(json) = serde_json::to_string(&resp) { let _ = tx.send(Message::Text(json.into())).await; }
                             }
 
                             // Caso di INSUCCESSO per ERRORE del DB
                             Err(e) => {
-                                let resp = AuthResponse { status: "error".into(), message: format!("Errore DB: {}", e), user_id: None };
+                                let resp = AuthResponse { status: "error".into(), message: format!("Errore DB: {}", e),};
                                 if let Ok(json) = serde_json::to_string(&resp) { let _ = tx.send(Message::Text(json.into())).await; }
                             }
                         }
@@ -223,13 +220,11 @@ impl ConnectionManager {
                     // CASO REGISTRAZIONE
                     "register" => {
                         match self.state.users_repo.insert_user(&auth_data.username, auth_data.password.as_bytes()).await {
-
                             // Caso di SUCCESSO
-                            Ok(id) => {
+                            Ok(_id) => {
                                 let resp = AuthResponse {
                                     status: "success".into(),
                                     message: "Registrazione completata! Ora effettua il login.".into(),
-                                    user_id: Some(id),
                                 };
                                 if let Ok(json) = serde_json::to_string(&resp) {
                                     let _ = tx.send(Message::Text(json.into())).await;
@@ -243,7 +238,6 @@ impl ConnectionManager {
                                 let resp = AuthResponse {
                                     status: "error".into(),
                                     message: format!("Errore registrazione (es. utente esistente): {:?}", e),
-                                    user_id: None,
                                 };
                                 if let Ok(json) = serde_json::to_string(&resp) {
                                     let _ = tx.send(Message::Text(json.into())).await;
@@ -254,7 +248,7 @@ impl ConnectionManager {
 
                     // CASO INDEFINITO
                     _ => {
-                        let resp = AuthResponse { status: "error".into(), message: "Usa 'login' o 'register'.".into(), user_id: None };
+                        let resp = AuthResponse { status: "error".into(), message: "Usa 'login' o 'register'.".into(),};
                         if let Ok(json) = serde_json::to_string(&resp) { let _ = tx.send(Message::Text(json.into())).await; }
                     }
                 }
@@ -314,7 +308,7 @@ mod tests {
             .execute(&pool).await.unwrap();
         /*sqlx::query("INSERT INTO users (id, username, password) VALUES (1, 'veicolo_test', 'password_test');")
             .execute(&pool).await.unwrap();*/
-        sqlx::query("CREATE TABLE IF NOT EXISTS journeys (id INTEGER PRIMARY KEY, user_id INTEGER, lat REAL, lon REAL, created_at TEXT);")
+        sqlx::query("CREATE TABLE IF NOT EXISTS journeys (id INTEGER PRIMARY KEY, user_id INTEGER, lat REAL, lon REAL, is_stopped INTEGER, created_at TEXT);")
             .execute(&pool).await.unwrap();
 
         // Avvia il ConnectionManager su una porta casuale libera (porta 0)
