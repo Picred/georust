@@ -23,10 +23,6 @@ pub async fn init_db(reset_tables: bool) -> Result<Pool<Sqlite>, sqlx::Error> {
         sqlx::query("DROP TABLE IF EXISTS journeys")
             .execute(&pool)
             .await?;
-        sqlx::query("DROP TABLE IF EXISTS vehicle_status")
-            .execute(&pool)
-            .await?; // TODO: valutare se rimuoverla e includere "status" in "vehicles"
-
         println!("[INFO] Database reset");
     }
 
@@ -46,6 +42,7 @@ pub async fn init_db(reset_tables: bool) -> Result<Pool<Sqlite>, sqlx::Error> {
       user_id INTEGER NOT NULL,
       lat REAL NOT NULL,
       lon REAL NOT NULL,
+      is_stopped INTEGER NOT NULL,
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
       FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -54,18 +51,6 @@ pub async fn init_db(reset_tables: bool) -> Result<Pool<Sqlite>, sqlx::Error> {
     .execute(&pool)
     .await?;
 
-    sqlx::query(
-        "CREATE TABLE IF NOT EXISTS vehicle_status (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      status TEXT,
-      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-      );",
-    )
-    .execute(&pool)
-    .await?;
 
     Ok(pool)
 }

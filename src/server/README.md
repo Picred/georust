@@ -105,9 +105,9 @@ async fn main() -> Result<(), sqlx::Error> {
     let journeys_repository = JourneysRepository::new(pool.clone());
     let stats = Statistics::new(RequiredTimeFrame::CurrentDay, journeys_repository);
 
-    let total_distance_km = stats.get_traveled_distance_by_user_id(1).await; // ~200 
-    let average_speed = stats.get_average_speed_by_user_id(1).await; // ~100 km/h
-    let total_hours = stats.get_full_journeys_duration_by_user_id(1).await; // 2.0
+    let total_distance_km = stats.get_traveled_distance_by_user_id(1).await?; // ~200 
+    let average_speed = stats.get_average_speed_by_user_id(1).await?; // ~100 km/h
+    let total_hours = stats.get_full_journeys_duration_by_user_id(1).await?; // 2.0
 
     Ok(())
 }
