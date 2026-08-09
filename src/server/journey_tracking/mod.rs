@@ -79,7 +79,8 @@ pub async fn handle_journey_tracking(
 
                     // Parsing ed inserimento delle coordinate nel database SQLite
                     if let Ok(coords) = serde_json::from_str::<Coordinates>(text) {
-                        state.journeys_repo.insert_journey_waypoint(user_id, coords.lat, coords.lon, coords.created_at.clone()).await?;
+                        // TODO (implementazione dell'assegnazione dello stato ai journey_waypoint)
+                        state.journeys_repo.insert_journey_waypoint(user_id, coords.lat, coords.lon, coords.created_at.clone(), false).await?;
                         println!("inserito nel db: {}, {}, {}, {}", user_id, coords.lat, coords.lon, coords.created_at);
 
                         // Opzionale: ricevere dati validi dal veicolo dimostra che è attivo,
