@@ -83,11 +83,11 @@ async fn main() -> Result<(), sqlx::Error> {
 ### Example usage of Statistics
 journeys table:
 
-| id | user_id | lat | lon | created_at |
-| :--- | :--- | :--- | :--- | :--- |
-| 1 | 1 | 36.74271559322131 | 14.7532649702098 | 2026-08-07 12:50:00 |
-| 2 | 1 | 37.639413644878196 | 14.892653008838272 | 2026-08-07 13:50:00 |
-| 10 | 1 | 36.74381604442879 | 14.787597244376057 | 2026-08-07 14:50:00 |
+| id | user_id | lat | lon | is_stopped | created_at |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| 1 | 1 | 36.74271559322131 | 14.7532649702098 | 0 | 2026-08-07 12:50:00 |
+| 2 | 1 | 37.639413644878196 | 14.892653008838272 | 0 | 2026-08-07 13:50:00 |
+| 10 | 1 | 36.74381604442879 | 14.787597244376057 | 0 | 2026-08-07 14:50:00 |
 
 > Distance between id `1` and id `10` (*Google Maps*) =~ 200km
 
@@ -107,7 +107,9 @@ async fn main() -> Result<(), sqlx::Error> {
 
     let total_distance_km = stats.get_traveled_distance_by_user_id(1).await?; // ~200 
     let average_speed = stats.get_average_speed_by_user_id(1).await?; // ~100 km/h
-    let total_hours = stats.get_full_journeys_duration_by_user_id(1).await?; // 2.0
+    let total_journeys_hours = stats.get_full_journeys_duration_by_user_id(1).await?; // 2.0
+    
+    let total_pauses_hours = stats.get_pauses_hours_by_user_id(1).await?;
 
     Ok(())
 }
