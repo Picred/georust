@@ -8,11 +8,13 @@ use clap::Parser;
 mod coord_gen;
 mod config;
 mod console;
+mod auth;
 
 use crate::config::Cli;
 use crate::coord_gen::CoordGenerator;
 use config::Config;
 use console::ConsoleEvent;
+use auth::authenticate;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -21,8 +23,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let cfg = Config::load(&cli)
         .map_err(|e| format!("Error while parsing client config file: {} ", e))?;
-
-    println!("{:?}", cfg);
 
     let mut generator = CoordGenerator::init(&cfg.coord_file_path)
         .map_err(|e| format!("Error while creating CoordGenerator: {} ", e))?;
@@ -33,11 +33,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .map_err(|e| format!("Failed to connect to {}: {e}", cfg.server_url))?;
     println!("Connected (HTTP status: {})", response.status());
 
-    let (ws_write, ws_read) = ws_stream.split();
+    let (mut ws_write, mut ws_read) = ws_stream.split();
+
+    let user_id = authenticate(&cfg, &mut ws_write, &mut ws_read)
+        .await
+        .map_err(|e| format!("Authentication failed: {e}"))?;
+    println!("Authenticated as user_id {user_id}");
 
     // Channel client->server communication
     let (out_tx, out_rx) = mpsc::channel::<Message>(64);
-
     let (event_tx, mut event_rx) = mpsc::channel::<ConsoleEvent>(8);
 
     let writer_handle = tokio::spawn(writer_task(ws_write, out_rx));
@@ -47,21 +51,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let console_handle = tokio::spawn(console::run(console_out_tx, event_tx));
 
     let mut ticker = time::interval(Duration::from_millis(cfg.tick_interval_millis.into()));
-    let mut sending = false;
-
-    let mut logged_in = false;
+    let mut sending = true;
 
     println!("Client console succesfully initialized. Type \"help\" for available commands");
 
     loop {
         tokio::select! {
             _ = ticker.tick() => {
-
-                if !logged_in {
-                    let login_json = r#"{"action":"login","username":"veicolo_test1","password":"password_test"}"#;
-                    out_tx.send(Message::Text(login_json.into())).await.unwrap();
-                    logged_in = true;
-                }
                  
                 if !sending {
                     continue;
