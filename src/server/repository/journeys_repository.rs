@@ -51,7 +51,7 @@ impl JourneysRepository {
         end_time: String,
     ) -> Result<Vec<JourneyWaypoint>, sqlx::Error> {
 
-        let sql = "SELECT user_id, lat, lon, created_at FROM journeys WHERE user_id = ? AND created_at >= ? AND created_at <= ?;";
+        let sql = "SELECT user_id, lat, lon, created_at, is_stopped FROM journeys WHERE user_id = ? AND created_at >= ? AND created_at <= ?;";
         let journey: Vec<JourneyWaypoint> = sqlx::query_as(sql)
             .bind(user_id)
             .bind(start_time)
