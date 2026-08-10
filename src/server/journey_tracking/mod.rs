@@ -1,10 +1,12 @@
 use tokio_tungstenite::tungstenite::Message;
 use tokio::net::TcpStream;
 use futures_util::StreamExt;
+use super::user_state_handler::UserStateHandler;
 use super::repository::server_state::ServerState;
 use G19::utils::coordinates::Coordinates;
 use tokio::sync::mpsc;
 use std::time::Duration; // Necessario per definire l'intervallo di tempo
+
 
 pub async fn handle_journey_tracking(
     ws_receiver: &mut futures_util::stream::SplitStream<tokio_tungstenite::WebSocketStream<TcpStream>>,
@@ -22,6 +24,9 @@ pub async fn handle_journey_tracking(
 
     // Flag per verificare se il client ha risposto all'ultimo Ping inviato
     let mut waiting_for_pong = false;
+
+
+    let mut user_state_handler = UserStateHandler::new();
 
     loop {
         tokio::select! {
@@ -79,9 +84,12 @@ pub async fn handle_journey_tracking(
 
                     // Parsing ed inserimento delle coordinate nel database SQLite
                     if let Ok(coords) = serde_json::from_str::<Coordinates>(text) {
-                        // TODO (implementazione dell'assegnazione dello stato ai journey_waypoint)
-                        state.journeys_repo.insert_journey_waypoint(user_id, coords.lat, coords.lon, coords.created_at.clone(), false).await?;
-                        println!("inserito nel db: {}, {}, {}, {}", user_id, coords.lat, coords.lon, coords.created_at);
+                        // IDENTIFICAZIONE USER STATE
+                        let user_state = user_state_handler.calculate_user_state(coords.clone());
+
+                        // INSERIMENTO JOURNEY WAYPOINT
+                        state.journeys_repo.insert_journey_waypoint(user_id, coords.lat, coords.lon, coords.created_at.clone(), user_state).await?;
+                        println!("inserito nel db: {}, {}, {}, {}, {}", user_id, coords.lat, coords.lon, coords.created_at, user_state);
 
                         // Opzionale: ricevere dati validi dal veicolo dimostra che è attivo,
                         // quindi azzerare l'allerta del pong anche alla ricezione di coordinate fresche.

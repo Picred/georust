@@ -1,4 +1,4 @@
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct Coordinates {
     pub lat: f64,
     pub lon: f64,

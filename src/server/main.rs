@@ -9,6 +9,8 @@ pub mod statistics;
 // -----------------------
 pub mod connection_manager;
 pub mod journey_tracking;
+pub mod user_state_handler;
+pub mod utils;
 
 use database::init_db;
 use std::sync::Arc;

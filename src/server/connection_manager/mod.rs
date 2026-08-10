@@ -22,7 +22,6 @@ Il sistema si divide in:
 
 use std::collections::HashMap;  
 use std::sync::Arc;
-use std::time::Duration;
 use sqlx::{Pool, Sqlite};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{mpsc, RwLock};
@@ -285,7 +284,6 @@ impl ConnectionManager {
 
 
 
-
 // ==========================================================
 // BLOCCO DI TEST DI INTEGRAZIONE (per testare connection manager e handle_journey_tracking)
 // ==========================================================
@@ -380,6 +378,17 @@ mod tests {
         // Costruisci una stringa JSON che rispecchi la tua struct 'Coordinates'
         let coords_json = r#"{"lat": 45.0708, "lon": 7.6869, "created_at": "2026-08-06 12:00:00"}"#;
         client_tx.send(Message::Text(coords_json.into())).await.unwrap();
+
+        let coords_json = r#"{"lat": 45.0708, "lon": 7.6869, "created_at": "2026-08-06 12:01:00"}"#;
+        client_tx.send(Message::Text(coords_json.into())).await.unwrap();
+
+        let coords_json = r#"{"lat": 45.08, "lon": 7.6869, "created_at": "2026-08-06 12:02:00"}"#;
+        client_tx.send(Message::Text(coords_json.into())).await.unwrap();
+
+
+        let coords_json = r#"{"lat": 45.08, "lon": 7.6869, "created_at": "2026-08-06 12:05:00"}"#;
+        client_tx.send(Message::Text(coords_json.into())).await.unwrap();
+
 
         // Controlla se il server manda l'eco di conferma ricezione
         /*if let Some(Ok(Message::Text(confirm))) = client_rx.next().await {
