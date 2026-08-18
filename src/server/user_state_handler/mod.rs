@@ -26,7 +26,7 @@ impl UserStateHandler {
             if self.first_eq_coordinates && Self::DEFAULT_USER_STATE && old_coordinates.lat == new_coordinates.lat && old_coordinates.lon == new_coordinates.lon {
                 true
             } else if old_coordinates.lat == new_coordinates.lat && old_coordinates.lon == new_coordinates.lon {
-                self.add_interval_in_sum_continuous_stop_time( 
+                self.add_interval_in_stop_time( 
                     old_coordinates.created_at.clone(),
                     new_coordinates.created_at.clone());
                 if self.sum_continuous_stop_time >= Self::MOTIONLESS_THRESHOLD_SECS { true } else { false }
@@ -43,13 +43,13 @@ impl UserStateHandler {
     }
 
 
-    fn add_interval_in_sum_continuous_stop_time(&mut self, previous_datetime: String, new_datetime: String) {
+    fn add_interval_in_stop_time(&mut self, previous_datetime: String, new_datetime: String) {
 
         let pre_t = convert_sql_to_naive_datetime(previous_datetime).unwrap();
         let new_t = convert_sql_to_naive_datetime(new_datetime).unwrap();
 
-        let diff_sec = (new_t - pre_t).num_seconds() as i64;
-        self.sum_continuous_stop_time += diff_sec;
+        let interval = (new_t - pre_t).num_seconds() as i64;
+        self.sum_continuous_stop_time += interval;
     }
 }
 
