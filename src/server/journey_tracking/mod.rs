@@ -6,6 +6,7 @@ use super::repository::server_state::ServerState;
 use G19::utils::coordinates::Coordinates;
 use tokio::sync::mpsc;
 use std::time::Duration; // Necessario per definire l'intervallo di tempo
+use super::utils::convert_sql_to_naive_datetime;
 
 
 pub async fn handle_journey_tracking(
@@ -84,12 +85,17 @@ pub async fn handle_journey_tracking(
 
                     // Parsing ed inserimento delle coordinate nel database SQLite
                     if let Ok(coords) = serde_json::from_str::<Coordinates>(text) {
-                        // IDENTIFICAZIONE USER STATE
-                        let user_state = user_state_handler.calculate_user_state(coords.clone());
 
-                        // INSERIMENTO JOURNEY WAYPOINT
-                        state.journeys_repo.insert_journey_waypoint(user_id, coords.lat, coords.lon, coords.created_at.clone(), user_state).await?;
-                        println!("inserito nel db: {}, {}, {}, {}, {}", user_id, coords.lat, coords.lon, coords.created_at, user_state);
+                        // controllo sul formato della stringa che contiene la data di created_at
+                        if convert_sql_to_naive_datetime(coords.created_at.clone()).is_ok() {
+
+                            // Identificazione user state
+                            let user_state = user_state_handler.calculate_user_state(coords.clone());
+    
+                            // Insermento delle coordinate nel db sottoforma di journey_waipoint
+                            state.journeys_repo.insert_journey_waypoint(user_id, coords.lat, coords.lon, coords.created_at.clone(), user_state).await?;
+                            println!("inserito nel db: {}, {}, {}, {}, {}", user_id, coords.lat, coords.lon, coords.created_at, user_state);
+                        }
 
                         // Opzionale: ricevere dati validi dal veicolo dimostra che è attivo,
                         // quindi azzerare l'allerta del pong anche alla ricezione di coordinate fresche.
