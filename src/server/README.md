@@ -6,7 +6,7 @@
 
 ### Example of `main.rs`
 
-Run: `cargo run --bin server [-- [--reset] [--statistics]]`
+Run: `cargo run --bin server [-- --reset]`
 Use: `--reset` to reset database table to zero, `--statistics` to run server in that specific mode with an interactive CLI.
 
 ```rust
@@ -171,7 +171,7 @@ async fn main() -> Result<(), sqlx::Error> {
 
     let total_distance_km = stats.get_traveled_distance_by_user_id(1).await?; // ~200 
     let average_speed = stats.get_average_speed_by_user_id(1).await?; // ~100 km/h
-    let total_journeys_hours = stats.get_full_journeys_duration_by_user_id(1).await?; // 2.0
+    let total_journeys_hours = stats.get_full_movement_duration_by_user_id(1).await?; // 2.0
     
     let total_pauses_hours = stats.get_pauses_hours_by_user_id(1).await?;
 

@@ -2,6 +2,12 @@ use super::utils::*;
 use crate::repository::journeys_repository::JourneysRepository;
 use chrono::{Datelike, Days, Local};
 
+/// Supported time windows used to aggregate journey statistics relative to the current local date.
+/// 
+/// # Variants
+/// - `CurrentDay`: Today from 00:00:00 to 23:59:59.
+/// - `CurrentWeek`: Monday 00:00:00 through Sunday 23:59:59 of the current calendar week.
+/// - `CurrentMonth`: First day 00:00:00 through the last day 23:59:59 of the current calendar month.
 #[derive(Copy, Clone, Debug)]
 pub enum RequiredTimeFrame {
     CurrentDay,
@@ -9,6 +15,7 @@ pub enum RequiredTimeFrame {
     CurrentMonth,
 }
 
+/// A discrete start and end timestamp pair formatted for SQL queries (`YYYY-MM-DD HH:MM:SS`).
 #[derive(Debug)]
 pub struct TimeRange {
     pub start: String,
@@ -34,28 +41,37 @@ impl<'a> Statistics<'a> {
         }
     }
 
+
+    /// Wrapper which helps to print the statistics of a vehicle identified by its user_id.
+    /// Fetches and prints formatted statistics for the given `user_id` to standard output.
+    ///
+    /// Aggregates:
+    /// * Traveled distance (km)
+    /// * Average speed (km/h)
+    /// * Active moving duration (hours)
+    /// * Total pause duration (hours)
     pub async fn get_all(&self, user_id: i64) -> Result<(), Box<dyn std::error::Error>> {
         let traveled_distance = self.get_traveled_distance_by_user_id(user_id).await?;
         let average_speed = self.get_average_speed_by_user_id(user_id).await?;
-        let full_journeys_duration = self.get_full_journeys_duration_by_user_id(user_id).await?;
+        let full_journeys_duration = self.get_full_movement_duration_by_user_id(user_id).await?;
         let total_pauses_hours = self.get_pauses_hours_by_user_id(user_id).await?;
 
         println!(
-            "[STATISTICS] Veicolo [{:?}]: Tragitto Percorso: {:.2?} km | Velocità media: {:.2?} km/h | Durata complessiva del movimento: {:.2?} ore | Durata delle pause: {:.2?} ore.",
+            "[STATISTICS] Veicolo [{:}]: Tragitto Percorso: {:.2} km | Velocità media: {:.2} km/h | Durata complessiva del movimento: {:.2} ore | Durata delle pause: {:.2} ore.",
             user_id, traveled_distance, average_speed, full_journeys_duration, total_pauses_hours
         );
 
         Ok(())
     }
 
+
     pub fn set_timeframe(&mut self, new_timeframe: RequiredTimeFrame) {
         self.timeframe = new_timeframe;
     }
 
-    pub fn get_timeframe(&self) -> RequiredTimeFrame {
-        self.timeframe
-    }
 
+    /// Converts the configured [`RequiredTimeFrame`] into a concrete SQL datetime range (`TimeRange`)
+    /// evaluated against the current system time in local timezone (`Local::now()`).
     fn convert_timeframe_to_range(&self) -> TimeRange {
         let today_raw = Local::now();
 
@@ -100,7 +116,10 @@ impl<'a> Statistics<'a> {
         }
     }
 
-    pub async fn get_traveled_distance_by_user_id(&self, user_id: i64) -> Result<f64, sqlx::Error> {
+
+    /// Computes the total kilometers traveled by the user within the selected timeframe.    /// 
+    /// Returns the total kilometers.
+    async fn get_traveled_distance_by_user_id(&self, user_id: i64) -> Result<f64, sqlx::Error> {
         let timerange = self.convert_timeframe_to_range();
         let journeys = self
             .journeys_repository
@@ -116,7 +135,9 @@ impl<'a> Statistics<'a> {
         Ok(distance_km)
     }
 
-    pub async fn get_average_speed_by_user_id(&self, user_id: i64) -> Result<f64, sqlx::Error> {
+
+    /// Computes the average speed in km/h (`total_distance_km / total_hours`).
+    async fn get_average_speed_by_user_id(&self, user_id: i64) -> Result<f64, sqlx::Error> {
         let timerange = self.convert_timeframe_to_range();
         let journeys = self
             .journeys_repository
@@ -130,17 +151,16 @@ impl<'a> Statistics<'a> {
         let total_distance_km = calculate_total_distance_of_journeys(&journeys);
         let total_hours = calculate_total_hours_of_journeys(&journeys);
 
-        let average_speed = format!("{:.2}", total_distance_km / total_hours)
+        let average_speed = format!("{}", total_distance_km / total_hours)
             .parse::<f64>()
             .unwrap();
 
         Ok(average_speed)
     }
 
-    pub async fn get_full_journeys_duration_by_user_id(
-        &self,
-        user_id: i64,
-    ) -> Result<f64, sqlx::Error> {
+
+    /// Computes the total elapsed movement time (in hours) between recorded waypoints.
+    async fn get_full_movement_duration_by_user_id(&self, user_id: i64 ) -> Result<f64, sqlx::Error> {
         let timerange = self.convert_timeframe_to_range();
         let journeys = self
             .journeys_repository
@@ -155,7 +175,9 @@ impl<'a> Statistics<'a> {
     }
 
 
-    pub async fn get_pauses_hours_by_user_id(&self, user_id: i64) -> Result<f64, sqlx::Error> {
+    /// Queries the repository for cumulative pause time (points marked `is_stopped = true`)
+    /// and converts the total duration from seconds into hours.
+    async fn get_pauses_hours_by_user_id(&self, user_id: i64) -> Result<f64, sqlx::Error> {
         let timerange = self.convert_timeframe_to_range();
         let total_pauses_seconds = self
             .journeys_repository
@@ -163,7 +185,7 @@ impl<'a> Statistics<'a> {
             .await? as f64;
 
         let seconds_to_hours_divider = 3600.0;
-        let total_pauses_hours = format!("{:.2}", total_pauses_seconds / seconds_to_hours_divider)
+        let total_pauses_hours = format!("{}", total_pauses_seconds / seconds_to_hours_divider)
             .parse::<f64>()
             .unwrap();
 
@@ -279,13 +301,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_get_full_journeys_duration_insufficient_waypoints() {
+    async fn test_get_full_movement_duration_insufficient_waypoints() {
         let pool = setup_db().await;
         let repo = JourneysRepository::new(pool);
         let stats = Statistics::new(RequiredTimeFrame::CurrentDay, &repo);
 
         let duration = stats
-            .get_full_journeys_duration_by_user_id(1)
+            .get_full_movement_duration_by_user_id(1)
             .await
             .unwrap();
 
@@ -293,7 +315,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_get_full_journeys_duration_success() {
+    async fn test_get_full_movement_duration_success() {
         let pool = setup_db().await;
         let repo = JourneysRepository::new(pool);
         let now = Local::now();
@@ -308,7 +330,7 @@ mod tests {
         let stats = Statistics::new(RequiredTimeFrame::CurrentDay, &repo);
 
         let duration = stats
-            .get_full_journeys_duration_by_user_id(1)
+            .get_full_movement_duration_by_user_id(1)
             .await
             .unwrap();
 

@@ -2,12 +2,18 @@ use sqlx::{Pool, Sqlite, Row};
 
 use crate::authenticator::Authenticator;
 
+/// Represents the outcome of a user authentication attempt.
+/// 
+/// # Variants:
+/// - `Succsss(i64)`: Authentication succeeded. Contains the unique `user_id` of the user.
+/// - `InvalidCredentials`: Authentication failed due to invalid credentials (user not found or mismatched password).
 #[derive(Debug, PartialEq, Eq)]
 pub enum AuthenticationStatus {
     Success(i64),
     InvalidCredentials,
 }
 
+/// Repository responsible for user persistence and credential validation in SQLite.
 pub struct UsersRepository {
     pub pool: Pool<Sqlite>,
 }
@@ -17,6 +23,16 @@ impl UsersRepository {
         Self { pool }
     }
 
+
+    /// Hashes the provided password and stores a new user record in the database.
+    ///
+    /// Arguments:
+    ///
+    /// - `username` - The unique username for the new account.
+    /// - `password` - The raw password provided as a byte slice (`&[u8]`).
+    ///
+    /// Returns the database-generated ID (`last_insert_rowid`) of the inserted user,
+    /// or a [`sqlx::Error`] if the operation fails (e.g., uniqueness constraint violation).
     pub async fn insert_user(&self, username: &str, password: &[u8]) -> Result<i64, sqlx::Error> {
         let password_hash = Authenticator::encrypt_password(password)?;
 
@@ -29,6 +45,12 @@ impl UsersRepository {
         Ok(result.last_insert_rowid())
     }
 
+
+    /// Verifies user credentials against the stored password hash.
+    ///
+    /// 1. Queries the database for the user record via [`get_password_and_id_by_username`](Self::get_password_and_id_by_username).
+    /// 2. If the user is missing ([`sqlx::Error::RowNotFound`]), returns [`AuthenticationStatus::InvalidCredentials`] instead of raising a database error.
+    /// 3. Validates the raw password against the stored hash using [`Authenticator::verify_password`].
     pub async fn validate_user_credentials(
         &self,
         username: &str,
@@ -40,7 +62,6 @@ impl UsersRepository {
             Err(e) => return Err(e)
         };
 
-        println!("[DEBUG] id: {}, stored_password: {}", user_id, stored_password);
 
         if Authenticator::verify_password(password, stored_password) {
             Ok(AuthenticationStatus::Success(user_id))
@@ -49,6 +70,11 @@ impl UsersRepository {
         }
     }
 
+
+    /// Fetches the user ID and hashed password for a given username.
+    /// 
+    /// # Errors
+    /// Returns [`sqlx::Error::RowNotFound`] if no user matching `username` exists.
     async fn get_password_and_id_by_username(&self, username: &str) -> Result<(i64, String), sqlx::Error> {
         let sql = "SELECT id, password FROM users WHERE username = ?;";
         let row = sqlx::query(sql).bind(username).fetch_one(&self.pool).await?;
