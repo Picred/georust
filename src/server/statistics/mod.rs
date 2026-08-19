@@ -1,8 +1,6 @@
-use chrono::{Datelike, Days, Local};
-use crate::repository::journeys_repository::{JourneysRepository};
 use super::utils::*;
-
-
+use crate::repository::journeys_repository::JourneysRepository;
+use chrono::{Datelike, Days, Local};
 
 #[derive(Copy, Clone, Debug)]
 pub enum RequiredTimeFrame {
@@ -11,13 +9,11 @@ pub enum RequiredTimeFrame {
     CurrentMonth,
 }
 
-
 #[derive(Debug)]
 pub struct TimeRange {
     pub start: String,
     pub end: String,
 }
-
 
 impl TimeRange {
     fn new(start: String, end: String) -> Self {
@@ -25,30 +21,42 @@ impl TimeRange {
     }
 }
 
-
-pub struct Statistics {
+pub struct Statistics<'a> {
     pub timeframe: RequiredTimeFrame,
-    journeys_repository: JourneysRepository
+    journeys_repository: &'a JourneysRepository,
 }
 
-
-impl Statistics {
-    pub fn new(timeframe: RequiredTimeFrame, journeys_repository: JourneysRepository) -> Self {
-        Self { timeframe, journeys_repository}
+impl<'a> Statistics<'a> {
+    pub fn new(timeframe: RequiredTimeFrame, journeys_repository: &'a JourneysRepository) -> Self {
+        Self {
+            timeframe,
+            journeys_repository,
+        }
     }
 
+    pub async fn get_all(&self, user_id: i64) -> Result<(), Box<dyn std::error::Error>> {
+        let traveled_distance = self.get_traveled_distance_by_user_id(user_id).await?;
+        let average_speed = self.get_average_speed_by_user_id(user_id).await?;
+        let full_journeys_duration = self.get_full_journeys_duration_by_user_id(user_id).await?;
+        let total_pauses_hours = self.get_pauses_hours_by_user_id(user_id).await?;
+
+        println!(
+            "[STATISTICS] Veicolo [{:?}]: Tragitto Percorso: {:.2?} km | Velocità media: {:.2?} km/h | Durata complessiva del movimento: {:.2?} ore | Durata delle pause: {:.2?} ore.",
+            user_id, traveled_distance, average_speed, full_journeys_duration, total_pauses_hours
+        );
+
+        Ok(())
+    }
 
     pub fn set_timeframe(&mut self, new_timeframe: RequiredTimeFrame) {
         self.timeframe = new_timeframe;
     }
 
-
     pub fn get_timeframe(&self) -> RequiredTimeFrame {
         self.timeframe
     }
 
-
-    fn convert_timeframe_to_range(&self) -> TimeRange{
+    fn convert_timeframe_to_range(&self) -> TimeRange {
         let today_raw = Local::now();
 
         match self.timeframe {
@@ -62,8 +70,12 @@ impl Statistics {
                 let days_from_monday = today_raw.weekday().number_from_monday() as u64;
                 let weekend_days_length = 7;
 
-                let weekend_start = today_raw.checked_sub_days(Days::new(days_from_monday - 1)).unwrap();
-                let weekend_end = weekend_start.checked_add_days(Days::new(weekend_days_length - 1)).unwrap();
+                let weekend_start = today_raw
+                    .checked_sub_days(Days::new(days_from_monday - 1))
+                    .unwrap();
+                let weekend_end = weekend_start
+                    .checked_add_days(Days::new(weekend_days_length - 1))
+                    .unwrap();
 
                 let start = format!("{}", weekend_start.format("%Y-%m-%d 00:00:00"));
                 let end = format!("{}", weekend_end.format("%Y-%m-%d 23:59:59"));
@@ -74,8 +86,12 @@ impl Statistics {
                 let days_in_this_month: u64 = today_raw.num_days_in_month().into();
                 let days_from_month_start = today_raw.day() as u64;
 
-                let first_day_of_the_month = today_raw.checked_sub_days(Days::new(days_from_month_start - 1)).unwrap();
-                let last_day_of_the_month = first_day_of_the_month.checked_add_days(Days::new(days_in_this_month - 1)).unwrap();
+                let first_day_of_the_month = today_raw
+                    .checked_sub_days(Days::new(days_from_month_start - 1))
+                    .unwrap();
+                let last_day_of_the_month = first_day_of_the_month
+                    .checked_add_days(Days::new(days_in_this_month - 1))
+                    .unwrap();
 
                 let start = format!("{}", first_day_of_the_month.format("%Y-%m-%d 00:00:00"));
                 let end = format!("{}", last_day_of_the_month.format("%Y-%m-%d 23:59:59"));
@@ -84,10 +100,12 @@ impl Statistics {
         }
     }
 
-
-    pub async fn get_traveled_distance_by_user_id(&mut self, user_id: i64) -> Result<f64, sqlx::Error> {
+    pub async fn get_traveled_distance_by_user_id(&self, user_id: i64) -> Result<f64, sqlx::Error> {
         let timerange = self.convert_timeframe_to_range();
-        let journeys = self.journeys_repository.get_journey_by_user_id_between_times(user_id, timerange.start, timerange.end).await?;
+        let journeys = self
+            .journeys_repository
+            .get_journey_by_user_id_between_times(user_id, timerange.start, timerange.end)
+            .await?;
 
         if journeys.len() < 2 {
             return Ok(0.0);
@@ -98,27 +116,36 @@ impl Statistics {
         Ok(distance_km)
     }
 
-
-    pub async fn get_average_speed_by_user_id(&self, user_id: i64) -> Result<f64, sqlx::Error>{
+    pub async fn get_average_speed_by_user_id(&self, user_id: i64) -> Result<f64, sqlx::Error> {
         let timerange = self.convert_timeframe_to_range();
-        let journeys = self.journeys_repository.get_journey_by_user_id_between_times(user_id, timerange.start, timerange.end).await?;
+        let journeys = self
+            .journeys_repository
+            .get_journey_by_user_id_between_times(user_id, timerange.start, timerange.end)
+            .await?;
 
         if journeys.len() < 2 {
             return Ok(0.0);
         }
-    
+
         let total_distance_km = calculate_total_distance_of_journeys(&journeys);
         let total_hours = calculate_total_hours_of_journeys(&journeys);
 
-        let average_speed = format!("{:.2}", total_distance_km / total_hours).parse::<f64>().unwrap();
-        
+        let average_speed = format!("{:.2}", total_distance_km / total_hours)
+            .parse::<f64>()
+            .unwrap();
+
         Ok(average_speed)
     }
 
-
-    pub async fn get_full_journeys_duration_by_user_id(&self, user_id: i64) -> Result<f64, sqlx::Error> {
+    pub async fn get_full_journeys_duration_by_user_id(
+        &self,
+        user_id: i64,
+    ) -> Result<f64, sqlx::Error> {
         let timerange = self.convert_timeframe_to_range();
-        let journeys = self.journeys_repository.get_journey_by_user_id_between_times(user_id, timerange.start, timerange.end).await?;
+        let journeys = self
+            .journeys_repository
+            .get_journey_by_user_id_between_times(user_id, timerange.start, timerange.end)
+            .await?;
 
         if journeys.len() < 2 {
             return Ok(0.0);
@@ -130,19 +157,19 @@ impl Statistics {
 
     pub async fn get_pauses_hours_by_user_id(&self, user_id: i64) -> Result<f64, sqlx::Error> {
         let timerange = self.convert_timeframe_to_range();
-        let total_pauses_seconds = self.journeys_repository.get_total_pauses_by_user_id(user_id, timerange.start, timerange.end).await? as f64;
+        let total_pauses_seconds = self
+            .journeys_repository
+            .get_total_pauses_by_user_id(user_id, timerange.start, timerange.end)
+            .await? as f64;
 
         let seconds_to_hours_divider = 3600.0;
-        let total_pauses_hours = format!("{:.2}", total_pauses_seconds / seconds_to_hours_divider).parse::<f64>().unwrap();
+        let total_pauses_hours = format!("{:.2}", total_pauses_seconds / seconds_to_hours_divider)
+            .parse::<f64>()
+            .unwrap();
 
         Ok(total_pauses_hours)
     }
 }
-
-
-
-
-
 
 
 #[cfg(test)]
@@ -190,13 +217,11 @@ mod tests {
         pool
     }
 
-
-
     #[tokio::test]
     async fn test_get_traveled_distance_insufficient_waypoints() {
         let pool = setup_db().await;
         let repo = JourneysRepository::new(pool);
-        let mut stats = Statistics::new(RequiredTimeFrame::CurrentDay, repo);
+        let stats = Statistics::new(RequiredTimeFrame::CurrentDay, &repo);
 
         let distance = stats.get_traveled_distance_by_user_id(1).await.unwrap();
         assert_eq!(distance, 0.0);
@@ -209,21 +234,24 @@ mod tests {
         let now = Local::now();
         let time_1 = now.format("%Y-%m-%d 10:00:00").to_string();
         let time_2 = now.format("%Y-%m-%d 10:30:00").to_string();
-        repo.insert_journey_waypoint(1, 45.4642, 9.1900, time_1, false).await.unwrap();
-        repo.insert_journey_waypoint(1, 45.4650, 9.1950, time_2, false).await.unwrap();
-        let mut stats = Statistics::new(RequiredTimeFrame::CurrentDay, repo);
+        repo.insert_journey_waypoint(1, 45.4642, 9.1900, time_1, false)
+            .await
+            .unwrap();
+        repo.insert_journey_waypoint(1, 45.4650, 9.1950, time_2, false)
+            .await
+            .unwrap();
+        let stats = Statistics::new(RequiredTimeFrame::CurrentDay, &repo);
 
         let distance = stats.get_traveled_distance_by_user_id(1).await;
 
         assert!(distance.is_ok());
     }
 
-
     #[tokio::test]
     async fn test_get_average_speed_insufficient_waypoints() {
         let pool = setup_db().await;
         let repo = JourneysRepository::new(pool);
-        let stats = Statistics::new(RequiredTimeFrame::CurrentDay, repo);
+        let stats = Statistics::new(RequiredTimeFrame::CurrentDay, &repo);
 
         let speed = stats.get_average_speed_by_user_id(1).await.unwrap();
 
@@ -237,23 +265,29 @@ mod tests {
         let now = Local::now();
         let time_1 = now.format("%Y-%m-%d 10:00:00").to_string();
         let time_2 = now.format("%Y-%m-%d 11:00:00").to_string();
-        repo.insert_journey_waypoint(1, 45.4642, 9.1900, time_1, false).await.unwrap();
-        repo.insert_journey_waypoint(1, 45.4742, 9.2000, time_2, false).await.unwrap();
-        let stats = Statistics::new(RequiredTimeFrame::CurrentDay, repo);
+        repo.insert_journey_waypoint(1, 45.4642, 9.1900, time_1, false)
+            .await
+            .unwrap();
+        repo.insert_journey_waypoint(1, 45.4742, 9.2000, time_2, false)
+            .await
+            .unwrap();
+        let stats = Statistics::new(RequiredTimeFrame::CurrentDay, &repo);
 
         let speed = stats.get_average_speed_by_user_id(1).await;
 
         assert!(speed.is_ok());
     }
 
-
     #[tokio::test]
     async fn test_get_full_journeys_duration_insufficient_waypoints() {
         let pool = setup_db().await;
         let repo = JourneysRepository::new(pool);
-        let stats = Statistics::new(RequiredTimeFrame::CurrentDay, repo);
+        let stats = Statistics::new(RequiredTimeFrame::CurrentDay, &repo);
 
-        let duration = stats.get_full_journeys_duration_by_user_id(1).await.unwrap();
+        let duration = stats
+            .get_full_journeys_duration_by_user_id(1)
+            .await
+            .unwrap();
 
         assert_eq!(duration, 0.0);
     }
@@ -265,21 +299,27 @@ mod tests {
         let now = Local::now();
         let time_1 = now.format("%Y-%m-%d 10:00:00").to_string();
         let time_2 = now.format("%Y-%m-%d 12:00:00").to_string(); // Differenza esatta di 2 ore
-        repo.insert_journey_waypoint(1, 45.4642, 9.1900, time_1, false).await.unwrap();
-        repo.insert_journey_waypoint(1, 45.4650, 9.1950, time_2, false).await.unwrap();
-        let stats = Statistics::new(RequiredTimeFrame::CurrentDay, repo);
+        repo.insert_journey_waypoint(1, 45.4642, 9.1900, time_1, false)
+            .await
+            .unwrap();
+        repo.insert_journey_waypoint(1, 45.4650, 9.1950, time_2, false)
+            .await
+            .unwrap();
+        let stats = Statistics::new(RequiredTimeFrame::CurrentDay, &repo);
 
-        let duration = stats.get_full_journeys_duration_by_user_id(1).await.unwrap();
+        let duration = stats
+            .get_full_journeys_duration_by_user_id(1)
+            .await
+            .unwrap();
 
         assert_eq!(duration, 2.0);
     }
-
 
     #[tokio::test]
     async fn test_get_pauses_hours_zero_pauses() {
         let pool = setup_db().await;
         let repo = JourneysRepository::new(pool);
-        let stats = Statistics::new(RequiredTimeFrame::CurrentDay, repo);
+        let stats = Statistics::new(RequiredTimeFrame::CurrentDay, &repo);
 
         let pauses = stats.get_pauses_hours_by_user_id(1).await.unwrap();
 
@@ -293,9 +333,13 @@ mod tests {
         let now = Local::now();
         let time_1 = now.format("%Y-%m-%d 10:00:00").to_string();
         let time_2 = now.format("%Y-%m-%d 12:00:00").to_string(); // 7200 secondi in pausa = 2.00 ore
-        repo.insert_journey_waypoint(1, 45.4642, 9.1900, time_1, true).await.unwrap();
-        repo.insert_journey_waypoint(1, 45.4642, 9.1900, time_2, true).await.unwrap();
-        let stats = Statistics::new(RequiredTimeFrame::CurrentDay, repo);
+        repo.insert_journey_waypoint(1, 45.4642, 9.1900, time_1, true)
+            .await
+            .unwrap();
+        repo.insert_journey_waypoint(1, 45.4642, 9.1900, time_2, true)
+            .await
+            .unwrap();
+        let stats = Statistics::new(RequiredTimeFrame::CurrentDay, &repo);
 
         let pauses = stats.get_pauses_hours_by_user_id(1).await.unwrap();
 
