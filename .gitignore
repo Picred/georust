@@ -23,3 +23,6 @@ rustc-ice-*.txt
 src/server/database/*.sqlite
 
 Cargo.lock
+
+# logfiles
+*.log
