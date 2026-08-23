@@ -34,6 +34,9 @@ use serde::{Deserialize, Serialize};
 use super::repository::users_repository::AuthenticationStatus;
 use super::journey_tracking::handle_journey_tracking;
 
+use tokio::io::{AsyncBufReadExt, BufReader};
+use super::statistics::{Statistics, RequiredTimeFrame};
+
 // struct per la ocmunicazione in fase di login/register
 #[derive(Deserialize)]
 struct AuthRequest {
@@ -77,7 +80,58 @@ impl ConnectionManager {
 
     // TASK DISPATCHER
     pub async fn run(self: Arc<Self>, listener: TcpListener) {
-        println!("Server in ascolto...");
+        println!("Server attivo");
+
+        // spawn del task to read the commands from server's CLI
+        
+        let manager_stdin = self.clone();
+        tokio::spawn(async move {
+            let stdin = tokio::io::stdin();
+            let mut reader = BufReader::new(stdin).lines();
+            
+            println!("Console dei comandi attiva. Digita un comando:");
+
+            while let Ok(Some(line)) = reader.next_line().await {
+                let trimmed = line.trim();
+                if trimmed.is_empty() {
+                    continue;
+                }
+
+
+                let command_params: Vec<&str> = trimmed.split_whitespace().collect();
+                match command_params[0] { // match command type
+                    "statistics" => {
+                        if command_params.len() < 2 {
+                            println!("Il comando statistics deve essere scritto in questo modo: statistics <user_id> [DAY|WEEK|MONTH]");
+                            continue;
+                        }
+
+                        let target_user_id = match command_params[1].parse::<i64>() {
+                            Ok(id) => id,
+                            Err(_) => {
+                                println!("Errore: <user_id> deve essere un numero intero valido.");
+                                continue;
+                            }
+                        };
+
+                        let stats = Statistics::new(RequiredTimeFrame::CurrentMonth, &manager_stdin.state.journeys_repo);
+                        if let Err(e) = stats.get_all(target_user_id).await {
+                            println!("Errore durante il recupero delle statistiche: {}", e);
+                        }
+                    }
+                    "help" => {
+                        println!("Comandi disponibili:");
+                        println!("  - statistics <user_id> [DAY|WEEK|MONTH]   -> Mostra le statistiche (tragitto, velocità media durata complessiva del movimento e durata delle pause) per uno specifico user");
+                        println!("  - help                                    -> Mostra questo messaggio");
+                    },
+                    _ => {
+                        println!("Comando sconosciuto. Digita 'help' per la lista dei comandi.");
+                    }
+                }
+            }
+        });
+
+        // spawn dei task per la gestione delle connessioni con i vari utenti
         while let Ok((stream, _)) = listener.accept().await {   // si stabiliste la connessione TCP
             let manager = self.clone();
             
@@ -269,7 +323,7 @@ impl ConnectionManager {
         // FASE DI TRACKING CON INVIO PING ATTIVO E VERIFICA TIMEOUT
         // ==========================================================
 
-        let _ = tx.send(Message::Text("{\"status\":\"success\",\"message\":\"Modalità Tracking avviata. Invia coordinate o 'STOP'\"}".into())).await;
+        //let _ = tx.send(Message::Text("{\"status\":\"success\",\"message\":\"Modalità Tracking avviata. Invia coordinate o 'STOP'\"}".into())).await;
         // AVVIO del task per il tracking (per ricezione ed inserimento delle coordinate nel db)
         // e gestione del PING per controllare stabilità della connessione con il client
         handle_journey_tracking(&mut ws_receiver, tx.clone(), user_id, &self.state).await?;
@@ -357,11 +411,7 @@ mod tests {
             panic!("Non è stata ricevuta una risposta di testo valida per il login");
         }
 
-        // TEST AVVIO TRACKING & PING ATTIVO
-        // Il server invia un messaggio di avvio modalità tracking subito dopo il login
-        if let Some(Ok(Message::Text(response))) = client_rx.next().await {
-            assert!(response.contains("Modalità Tracking avviata"), "Mancato avviso avvio tracking");
-        }
+        // TEST PING ATTIVO
 
         // Ora testiamo se il server ci manda il PING attivo (impostato a 10 secondi nel server)
         // Usiamo un timeout sul test per non rimanere appesi se il server fallisce
@@ -389,12 +439,6 @@ mod tests {
         let coords_json = r#"{"lat": 45.08, "lon": 7.6869, "created_at": "2026-08-06 12:05:00"}"#;
         client_tx.send(Message::Text(coords_json.into())).await.unwrap();
 
-
-        // Controlla se il server manda l'eco di conferma ricezione
-        /*if let Some(Ok(Message::Text(confirm))) = client_rx.next().await {
-            assert!(confirm.contains("Dati ricevuti"), "Il server non ha confermato le coordinate");
-        }*/
-
         // TEST COMANDO DI STOP
         client_tx.send(Message::Text("STOP".into())).await.unwrap();
 
@@ -402,9 +446,7 @@ mod tests {
             assert!(stop_confirm.contains("Tracking interrotto con successo"), "Il server non ha risposto correttamente allo STOP");
         }
 
-        // Controlla che dopo lo STOP il server chiuda effettivamente lo stream
-        /*let fine_flusso = client_rx.next().await;
-        assert!(fine_flusso.is_none(), "Il server non ha chiuso la connessione dopo lo STOP");*/
+
     }
 }
 
