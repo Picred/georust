@@ -16,8 +16,6 @@ use config::Config;
 use console::ConsoleEvent;
 use auth::authenticate;
 
-use G19::utils::message;
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
@@ -114,9 +112,11 @@ async fn reader_task(
     while let Some(msg) = ws_read.next().await {
         match msg {
             Ok(Message::Text(json)) => {
-                let message: message::Message = serde_json::from_str(&json).expect("failed to deserialize server message");
-                let body = message.body;
-                println!("\n[server] {body}")
+                println!("\n[server] {json}");
+                //println!("{:?}", json);
+                //let message: message::Message = serde_json::from_str(&json).expect("failed to deserialize server message");
+                //let body = message.body;
+                //println!("\n[server] {body}")
             },
             Ok(_) => {}
             Err(e) => {
