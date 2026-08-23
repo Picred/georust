@@ -7,9 +7,10 @@ pub mod models;
 pub mod repository;
 pub mod statistics;
 pub mod connection_manager;
-pub mod journey_tracking;
+pub mod user_session_handler;
 pub mod user_state_handler;
 pub mod utils;
+pub mod server_messaging;
 // -----------------------
 
 use database::init_db;

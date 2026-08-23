@@ -1,25 +1,3 @@
-/*
-Modulo in cui si gestisce la connessione tramite WebSocket con l'ausilio di Tunstenite.
-Il sistema si divide in:
-    - TASK DISPATCER:
-        - aspetta che venga creata una connessione TCP
-        - genera codice univoco del socket per la connessione
-        - genera task del connession-handler
-    - TASK CONNECTION-HANDLER:
-        - esegue handshake del WebSocket
-        - splitta il WebSocket in:
-            - ws_receiver: riceve i messaggi inviati dal client verso il server
-            - ws_sender: invia i messaggi dal server verso il client
-        - inserisce il socket nella mappa sockets del ConnectionManger
-        - spawna il micro-task di scrittura verso il client (si attiva quando c'è un msg generato da un task del server nel canale)
-        - loop di ricezione messaggi dal client:
-            - fase di LOGIN/REGISTER
-            - fase di TRACKING:
-                    - invio coordinate
-        - disconnessione
- */
-
-
 use std::collections::HashMap;  
 use std::sync::Arc;
 use sqlx::{Pool, Sqlite};
@@ -32,10 +10,12 @@ use uuid::Uuid;
 use super::repository::server_state::ServerState;
 use serde::{Deserialize, Serialize};
 use super::repository::users_repository::AuthenticationStatus;
-use super::journey_tracking::handle_journey_tracking;
+use super::user_session_handler::handle_user_session;
 
 use tokio::io::{AsyncBufReadExt, BufReader};
 use super::statistics::{Statistics, RequiredTimeFrame};
+use super::server_messaging;
+
 
 // struct per la ocmunicazione in fase di login/register
 #[derive(Deserialize)]
@@ -102,7 +82,7 @@ impl ConnectionManager {
                 match command_params[0] { // match command type
                     "statistics" => {
                         if command_params.len() < 2 {
-                            println!("Il comando statistics deve essere scritto in questo modo: statistics <user_id> [DAY|WEEK|MONTH]");
+                            println!("Uso corretto: statistics <user_id> [DAY|WEEK|MONTH]");
                             continue;
                         }
 
@@ -118,6 +98,12 @@ impl ConnectionManager {
                         if let Err(e) = stats.get_all(target_user_id).await {
                             println!("Errore durante il recupero delle statistiche: {}", e);
                         }
+                    }
+                    "send" => {
+                        server_messaging::send(&command_params, &manager_stdin).await;
+                    }
+                    "broadcast" => {
+                        server_messaging::broadcast(&command_params, &manager_stdin).await;
                     }
                     "help" => {
                         println!("Comandi disponibili:");
@@ -184,13 +170,6 @@ impl ConnectionManager {
         // ==========================================================
         while let Some(result) = ws_receiver.next().await {
             let msg = result?;
-
-            // GESTIONE PING da parte del Client (se necessaria)
-            /*if msg.is_ping() {
-                // Risponde al ping rimandando i dati ricevuti nel payload del ping (richiesto dallo standard)
-                let _ = tx.send(Message::Pong(msg.into_data())).await;
-                continue;
-            }*/
 
             // GESTIONE CLOSE (il client disconnettendosi prima dell'autenticazione invia un frame di chiusura, 
             // in questo modo viene interrotta la fase di autenticazione)
@@ -326,7 +305,7 @@ impl ConnectionManager {
         //let _ = tx.send(Message::Text("{\"status\":\"success\",\"message\":\"Modalità Tracking avviata. Invia coordinate o 'STOP'\"}".into())).await;
         // AVVIO del task per il tracking (per ricezione ed inserimento delle coordinate nel db)
         // e gestione del PING per controllare stabilità della connessione con il client
-        handle_journey_tracking(&mut ws_receiver, tx.clone(), user_id, &self.state).await?;
+        handle_user_session(&mut ws_receiver, tx.clone(), user_id, &self.state).await?;
 
         // CLEANUP AL DISCONNECT
         self.sockets.write().await.remove(&socket_id);

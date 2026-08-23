@@ -7,9 +7,10 @@ use G19::utils::coordinates::Coordinates;
 use tokio::sync::mpsc;
 use std::time::Duration; // Necessario per definire l'intervallo di tempo
 use super::utils::convert_sql_to_naive_datetime;
+use G19::utils;
 
 
-pub async fn handle_journey_tracking(
+pub async fn handle_user_session(
     ws_receiver: &mut futures_util::stream::SplitStream<tokio_tungstenite::WebSocketStream<TcpStream>>,
     tx: mpsc::Sender<Message>,
     user_id: i64,
@@ -73,7 +74,7 @@ pub async fn handle_journey_tracking(
                     break;
                 }
 
-                // Elaborazione dei messaggi di testo (Coordinate o STOP)
+                // Elaborazione dei messaggi di testo
                 if msg.is_text() {
                     let text = msg.to_text().unwrap_or("");
                     
@@ -97,11 +98,15 @@ pub async fn handle_journey_tracking(
                             println!("inserito nel db: {}, {}, {}, {}, {}", user_id, coords.lat, coords.lon, coords.created_at, user_state);
                         }
 
-                        // Opzionale: ricevere dati validi dal veicolo dimostra che è attivo,
-                        // quindi azzerare l'allerta del pong anche alla ricezione di coordinate fresche.
+                        // ricevere dati validi dal veicolo dimostra che è attivo, quindi
+                        // azzerare l'allerta del pong anche alla ricezione di altre coordinate.
                         waiting_for_pong = false;
+
+                    } else if let Ok(msg) = serde_json::from_str::<utils::message::Message>(text) {
+                        // log del messaggio
+                        println!("Ricevuto messaggio: {}", msg.body);
                     } else {
-                        let _ = tx.send(Message::Text("{\"error\":\"Invia coordinate o 'STOP'\"}".into())).await;
+                        let _ = tx.send(Message::Text("{\"error\":\"Formato messaggio non valido o non riconosciuto\"}".into())).await;
                     }
                 }
             }
