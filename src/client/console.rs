@@ -2,6 +2,8 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::sync::mpsc;
 use tokio_tungstenite::tungstenite::Message;
 
+use G19::utils::message;
+
 pub enum ConsoleEvent {
     Start,
     Stop,
@@ -91,9 +93,11 @@ pub async fn run(out_tx: mpsc::Sender<Message>, event_tx: mpsc::Sender<ConsoleEv
                         break;
                     }
                 } else if let Some(rest) = line.strip_prefix("send ") {
-                    let payload = rest.to_string();
-                    if out_tx.send(Message::Text(payload)).await.is_err() {
-                        eprintln!("Failed to send: channel closed.");
+                    let msg = message::Message {body: rest.to_string()};
+
+                    let msg_json = serde_json::to_string(&msg).expect("failed to serialize message");
+                    if out_tx.send(Message::Text(msg_json)).await.is_err() {
+                        eprintln!("Outgoing channel closed, stopping.");
                         break;
                     }
                 } else if line == "send" {
