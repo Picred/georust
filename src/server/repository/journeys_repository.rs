@@ -1,6 +1,7 @@
 use sqlx::{Pool, Sqlite};
 use crate::models::journey_waypoint::JourneyWaypoint;
 
+/// Repository responsible for journey waypoints persistence in SQLite.
 pub struct JourneysRepository {
     pub pool: Pool<Sqlite>,
 }
@@ -10,6 +11,14 @@ impl JourneysRepository {
         Self { pool }
     }
 
+    /// Stores in the db a single journey waipoint of a user-
+    /// 
+    /// Arguments:
+    /// - `user_id`     - of the user who sent the coordinates.
+    /// - `lat`         - latitude of coordinates.
+    /// - `lon`         - longitude of coordinates.
+    /// - `created_at`  - formated timestamp of the user in this specific coordinates.
+    /// - `is_stopped`  - state of the user in this journey waypoint.
     pub async fn insert_journey_waypoint(
         &self,
         user_id: i64,
@@ -30,6 +39,7 @@ impl JourneysRepository {
         Ok(())
     }
 
+    /// Returns the Vec of JourneyWaiponts with field `user_id` equal to the parameter inserted in the function
     pub async fn get_full_journey_by_user_id(
         &self,
         user_id: i64,
@@ -43,7 +53,7 @@ impl JourneysRepository {
     }
 
 
-
+    /// Return the Vec of JourneyWaipoints with field `created_at` between start_time and end_time (limits included)
     pub async fn get_journey_by_user_id_between_times(
         &self,
         user_id: i64,
@@ -63,7 +73,7 @@ impl JourneysRepository {
     }
 
 
-    /// restituisce la durata delle pause (in secondi) di un user in un intervallo di tempo programmabile (definito da start_time e end_time)
+    /// returns the duration of pauses (in seconds) of a user in a programmable time interval (defined by start_time and end_time)
     pub async fn get_total_pauses_by_user_id(
         &self,
         user_id: i64,

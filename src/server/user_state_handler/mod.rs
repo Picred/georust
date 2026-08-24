@@ -1,6 +1,12 @@
 use G19::utils::coordinates::Coordinates;
 use super::utils::convert_sql_to_naive_datetime;
 
+/// Handler is used to manage the calculation of the user's state during the user's session (lifetime of this handler).
+/// 
+/// Fields:
+/// - `previous_coordinates`     -> useful to know if the new coordinates are changed from the last stored in db for that user
+/// - `sum_continuous_stop_time` -> counts the number of seconds that have passed since the first waipont journey in which the user is in the STOP state (it is reset when the user enters the MOVE state)
+/// - `first_eq_coordinates`     -> flag witch is used to understand if the coordinates sent have changed since the beginning of the session (true = not changed, false = changed)
 pub struct UserStateHandler{
     previous_coordinates: Option<Coordinates>,
     sum_continuous_stop_time: i64,
@@ -9,8 +15,10 @@ pub struct UserStateHandler{
 
 
 impl UserStateHandler {
-    const DEFAULT_USER_STATE: bool = true; // di default un user inizia con lo stato "FERMO" (che corrisponde a true del del campo is_stopped in journeys)
-    const MOTIONLESS_THRESHOLD_SECS: i64 = 180; // 3 minuti in cui le coordinate rimangono uguali per passare da stato "IN_MOVIMENTO" a "fermo"
+    // By default, a user starts with the "STATIONARY" state (which corresponds to true in the is_stopped field in journeys)
+    const DEFAULT_USER_STATE: bool = true; 
+    // 3 minutes during which coordinates remain the same to transition from "IN_MOTION" to "STATIONARY" state
+    const MOTIONLESS_THRESHOLD_SECS: i64 = 180; 
 
     pub fn new() -> Self {
         Self{
@@ -20,7 +28,7 @@ impl UserStateHandler {
         }
     }
 
-
+    /// Calculate the state of the user, based on the new coordinates that have been received (argument to insert) and what happened in the past.
     pub fn calculate_user_state(&mut self, new_coordinates: Coordinates) -> bool {
         let user_state = if let Some(old_coordinates) = &self.previous_coordinates {
             if self.first_eq_coordinates && Self::DEFAULT_USER_STATE && old_coordinates.lat == new_coordinates.lat && old_coordinates.lon == new_coordinates.lon {
@@ -42,7 +50,7 @@ impl UserStateHandler {
         user_state
     }
 
-
+    /// Add to `sum_continuous_stop_time` the interval (in secs) between the new_datetime and the previous_datetime 
     fn add_interval_in_stop_time(&mut self, previous_datetime: String, new_datetime: String) {
 
         let pre_t = convert_sql_to_naive_datetime(previous_datetime).unwrap();
@@ -59,7 +67,7 @@ impl UserStateHandler {
 mod tests {
     use super::*;
 
-    // Funzione helper per creare coordinate fittizie con un timestamp specifico
+    // Helper function to create mock coordinates with a specific timestamp
     fn create_mock_coords(lat: f64, lon: f64, time_str: &str) -> Coordinates {
         Coordinates {
             lat,
@@ -73,7 +81,7 @@ mod tests {
         let mut handler = UserStateHandler::new();
         let coords = create_mock_coords(45.0, 7.0, "2026-01-01 10:00:00");
 
-        // Al primo inserimento deve restituire il valore di default (true = FERMO)
+        // Upon the first insertion, it must return the default value (true = STATIONARY)
         let state = handler.calculate_user_state(coords);
         assert_eq!(state, UserStateHandler::DEFAULT_USER_STATE);
         assert_eq!(handler.sum_continuous_stop_time, 0);
@@ -83,15 +91,15 @@ mod tests {
     fn test_from_stop_to_moving() {
         let mut handler = UserStateHandler::new();
         
-        // Primo punto (Stato iniziale: FERMO di default)
+        // First point (Initial state: STATIONARY by default)
         let coords1 = create_mock_coords(45.0, 7.0, "2026-01-01 10:00:00");
         handler.calculate_user_state(coords1);
 
-        // Secondo punto con coordinate diverse (Si sta muovendo -> false)
+        // Second point with different coordinates (It is moving -> false)
         let coords2 = create_mock_coords(45.1, 7.1, "2026-01-01 10:01:00");
         let state = handler.calculate_user_state(coords2);
 
-        assert!(!state); // Deve essere false (IN_MOVIMENTO)
+        assert!(!state); // Must be false (IN_MOTION)
         assert_eq!(handler.sum_continuous_stop_time, 0);
     }
 
@@ -99,30 +107,30 @@ mod tests {
     fn test_accumulation_of_stop_time_and_threshold() {
         let mut handler = UserStateHandler::new();
 
-        // 1. Inizializzazione (Ritorna true di default, tempo = 0)
+        // 1. Initialization (Returns true by default, time = 0)
         let c1 = create_mock_coords(45.0, 7.0, "2026-01-01 10:00:00");
         handler.calculate_user_state(c1);
 
-        // 2. Si muove per cambiare lo stato in false (IN_MOVIMENTO)
+        // 2. Moves to change the state to false (IN_MOTION)
         let c2 = create_mock_coords(45.1, 7.1, "2026-01-01 10:01:00");
         handler.calculate_user_state(c2);
 
-        // 3. Rimane fermo nella nuova posizione per 60 secondi (Sotto la soglia di 180s)
-        // Nuove coordinate uguali a c2, tempo +60 secondi
+        // 3. Remains stationary at the new location for 60 seconds (Below the 180s threshold)
+        // New coordinates identical to c2, time +60 seconds
         let c3 = create_mock_coords(45.1, 7.1, "2026-01-01 10:02:00");
         let state_after_c3 = handler.calculate_user_state(c3);
         
-        assert_eq!(state_after_c3, false); // Ancora in movimento perché non ha superato la soglia
+        assert_eq!(state_after_c3, false); // Still moving because it has not exceeded the threshold
         assert_eq!(handler.sum_continuous_stop_time, 60);
 
         println!("sum_continuous_stop_time: {}", handler.sum_continuous_stop_time);
 
-        // 4. Rimane fermo per altri 130 secondi nella stessa posizione (Totale sosta: 190s > 180s)
-        // Nuove coordinate uguali a c3, tempo +130 secondi
+        // 4. Remains stationary for another 130 seconds at the same position (Total stop time: 190s > 180s)
+        // New coordinates identical to c3, time +130 seconds
         let c4 = create_mock_coords(45.1, 7.1, "2026-01-01 10:04:10");
         let state_after_c4 = handler.calculate_user_state(c4);
         println!("sum_continuous_stop_time: {}", handler.sum_continuous_stop_time);
-        assert_eq!(state_after_c4, true); // Ora deve essere true (FERMO) perché ha superato i 180s
+        assert_eq!(state_after_c4, true); // Now it must be true (STATIONARY) because it exceeded 180s
         assert_eq!(handler.sum_continuous_stop_time, 190);
     }
 
@@ -130,15 +138,15 @@ mod tests {
     fn test_reset_after_moving_again() {
         let mut handler = UserStateHandler::new();
 
-        // Mandiamo una sequenza che supera la soglia di sosta
+        // Send a sequence that exceeds the stop time threshold
         handler.calculate_user_state(create_mock_coords(45.0, 7.0, "2026-01-01 10:00:00"));
-        handler.calculate_user_state(create_mock_coords(45.0, 7.0, "2026-01-01 10:05:00")); // +300 secondi -> Stato: FERMO
+        handler.calculate_user_state(create_mock_coords(45.0, 7.0, "2026-01-01 10:05:00")); // +300 seconds -> State: STATIONARY
 
-        // Adesso l'utente riparte e cambia coordinate
+        // Now the user moves off and changes coordinates
         let moving_coords = create_mock_coords(45.5, 7.5, "2026-01-01 10:06:00");
         let state = handler.calculate_user_state(moving_coords);
 
-        // Lo stato deve resettarsi immediatamente a false e il contatore a 0
+        // The state must reset immediately to false and the counter to 0
         assert_eq!(state, false);
         assert_eq!(handler.sum_continuous_stop_time, 0);
     }
