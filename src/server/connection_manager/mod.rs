@@ -204,9 +204,6 @@ impl ConnectionManager {
             }
         });
 
-
-        let mut authenticated_user_id: Option<i64> = None;
-
         // Authentication phase
         while let Some(result) = ws_receiver.next().await {
             let msg = result?;
@@ -247,7 +244,6 @@ impl ConnectionManager {
 
                             // Success case
                             Ok(AuthenticationStatus::Success(id)) => {
-                                authenticated_user_id = Some(id);
                                 
                                 // registers the user_id in the active sockets map
                                 {
@@ -265,6 +261,8 @@ impl ConnectionManager {
                                 if let Ok(json) = serde_json::to_string(&resp) {
                                     let _ = tx.send(Message::Text(json.into())).await;
                                 }
+
+                                handle_user_session(&mut ws_receiver, tx.clone(), id, &self.state).await?;
 
                                 break;
                             }
@@ -319,18 +317,6 @@ impl ConnectionManager {
             }
         }
 
-        // Check if the user is authenticated
-        let user_id = match authenticated_user_id {
-            Some(id) => id,
-            None => {
-                self.sockets.write().await.remove(&socket_id);
-                return Ok(());
-            }
-        };
-
-        // Handle user session
-        handle_user_session(&mut ws_receiver, tx.clone(), user_id, &self.state).await?;
-
         // Cleanup to disconession
         self.sockets.write().await.remove(&socket_id);
         println!("Socket [{}] rimosso dalla mappa globale causa disconnessione.", socket_id);
@@ -374,7 +360,7 @@ mod tests {
         let manager_clone = manager.clone();
 
         // Start the server in a dedicated background task
-        let server_task = tokio::spawn(async move {
+        tokio::spawn(async move {
             manager_clone.run(listener).await;
         });
 
