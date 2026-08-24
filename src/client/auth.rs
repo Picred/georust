@@ -9,8 +9,7 @@ use config::Config;
 #[derive(Debug, Deserialize)]
 struct AuthResponse {
     status: String,
-    message: String,
-    user_id: Option<i64>
+    message: String
 }
 
 /// Logs into the server using `cfg.client_username` / `cfg.client_password`.
@@ -19,14 +18,12 @@ pub async fn authenticate(
     cfg: &Config,
     ws_write: &mut (impl SinkExt<Message, Error = tokio_tungstenite::tungstenite::Error> + Unpin),
     ws_read: &mut (impl StreamExt<Item = Result<Message, tokio_tungstenite::tungstenite::Error>> + Unpin),
-) -> Result<i64, Box<dyn std::error::Error>> {
+) -> Result<bool, Box<dyn std::error::Error>> {
 
     let response = login(cfg, ws_write, ws_read).await?;
     if response.status == "success" {
         println!("Login successful: {}", response.message);
-        return response
-            .user_id
-            .ok_or_else(|| "Login reported success but no user_id was returned".into());
+        return Ok(true)
     }
     println!("Login failed ({}), attempting registration...", response.message);
 
@@ -40,9 +37,7 @@ pub async fn authenticate(
     let response = login(cfg, ws_write, ws_read).await?;
     if response.status == "success" {
         println!("Login successful: {}", response.message);
-        response
-            .user_id
-            .ok_or_else(|| "Login reported success but no user_id was returned".into())
+        return Ok(true)
     } else {
         Err(format!("Login after registration failed: {}", response.message).into())
     }

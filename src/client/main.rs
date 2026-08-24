@@ -35,10 +35,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let (mut ws_write, mut ws_read) = ws_stream.split();
 
-    let user_id = authenticate(&cfg, &mut ws_write, &mut ws_read)
+    let _ = authenticate(&cfg, &mut ws_write, &mut ws_read)
         .await
         .map_err(|e| format!("Authentication failed: {e}"))?;
-    println!("Authenticated as user_id {user_id}");
+    println!("Authenticated succesfully");
 
     // Channel client->server communication
     let (out_tx, out_rx) = mpsc::channel::<Message>(64);
@@ -111,7 +111,13 @@ async fn reader_task(
 ) {
     while let Some(msg) = ws_read.next().await {
         match msg {
-            Ok(Message::Text(text)) => println!("\n[server] {text}"),
+            Ok(Message::Text(json)) => {
+                println!("\n[server] {json}");
+                //println!("{:?}", json);
+                //let message: message::Message = serde_json::from_str(&json).expect("failed to deserialize server message");
+                //let body = message.body;
+                //println!("\n[server] {body}")
+            },
             Ok(_) => {}
             Err(e) => {
                 eprintln!("WebSocket read error: {e}");
