@@ -26,13 +26,14 @@ use std::time::Duration;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
 
-    Logger::init("logs/server.log", LogLevel::Info, Duration::from_secs(3))
+    Logger::init("logs/server.log", LogLevel::Debug, Duration::from_secs(3))
         .await
         .expect("failed to init logger");
 
     G19::info!(LogModule::Main, "startup", "Georust server starting up");
+    
 
-    let pool:Pool<Sqlite> = init_db(false).await?;
+    let pool:Pool<Sqlite> = init_db(true).await?;
     let manager = Arc::new(ConnectionManager::new(pool));
     let addr = "127.0.0.1:9001".to_string();
     let listener = TcpListener::bind(&addr).await?;
