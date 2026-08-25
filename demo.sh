@@ -10,7 +10,6 @@ mkdir -p "$LOG_DIR"
 
 PID_FILE="/tmp/georust_demo_${UID}.pids"
 SERVER_PID=""
-# rm -f "$PID_FILE"
 
 
 cleanup() {
@@ -30,7 +29,6 @@ cleanup() {
     echo -e "[+] All demo processes killed safely!"
     exit 0
 }
-# trap cleanup SIGINT SIGTERM EXIT
 
 
 compile(){

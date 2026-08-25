@@ -54,3 +54,9 @@ Per interrompere la demo e terminare tutti i processi attivi:
 | **Binario Client** | `./target/release/client` | Eseguibile dei nodi client |
 | **Log Directory** | `./logs/` | Cartella di output per i log dei processi |
 | **PID Tracking** | `/tmp/georust_demo_${UID}.pids` | File temporaneo per l'arresto sicuro dei PID |
+
+
+
+# TODO List
+- [ ] Aggiungere override path coordinate per ogni client generato
+- [ ] Generare le coordinate (con pause e non)
