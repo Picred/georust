@@ -55,9 +55,10 @@ pub enum LogModule {
     Authenticator,
     ConnectionManager,
     Database,
-    JourneyTracking,
+    UserSessionHandler,
     Statistics,
     UserStateHandler,
+    JourneysRepository,
 }
 
 impl std::fmt::Display for LogModule {
@@ -67,9 +68,10 @@ impl std::fmt::Display for LogModule {
             LogModule::Authenticator => "authenticator",
             LogModule::ConnectionManager => "connection_manager",
             LogModule::Database => "database",
-            LogModule::JourneyTracking => "journey_tracking",
+            LogModule::UserSessionHandler => "user_session_handler",
             LogModule::Statistics => "statistics",
             LogModule::UserStateHandler => "user_state_handler",
+            LogModule::JourneysRepository => "journeys_repo"
         };
         write!(f, "{s}")
     }
