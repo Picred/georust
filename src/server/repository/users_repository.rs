@@ -1,3 +1,6 @@
+use std::fmt::format;
+
+use G19::LogModule;
 use sqlx::{Pool, Sqlite, Row};
 
 use crate::authenticator::Authenticator;
@@ -42,6 +45,7 @@ impl UsersRepository {
             .execute(&self.pool)
             .await?;
 
+        G19::info!(LogModule::Authenticator, "registration_attempt", "{:?} Successfully registered!", username);
         Ok(result.last_insert_rowid())
     }
 
@@ -58,14 +62,19 @@ impl UsersRepository {
     ) -> Result<AuthenticationStatus, sqlx::Error> {
         let (user_id, stored_password) = match self.get_password_and_id_by_username(username).await {
             Ok(row_hash) => row_hash,
-            Err(sqlx::Error::RowNotFound) => return Ok(AuthenticationStatus::InvalidCredentials),
+            Err(sqlx::Error::RowNotFound) =>    {
+                G19::warn!(LogModule::Authenticator, "login_attempt", "{:?} Failed to log in!", username);
+                return Ok(AuthenticationStatus::InvalidCredentials);
+            },
             Err(e) => return Err(e)
         };
 
 
         if Authenticator::verify_password(password, stored_password) {
+            G19::info!(LogModule::Authenticator, "login_success", "{:?} Successfully logged in!", username);
             Ok(AuthenticationStatus::Success(user_id))
         } else {
+            G19::warn!(LogModule::Authenticator, "login_attempt", "{:?} Failed to log in!", username);
             Ok(AuthenticationStatus::InvalidCredentials)
         }
     }
