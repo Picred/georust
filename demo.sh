@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 
 CLIENTS_TO_SPAWN="$2"
-# CLIENT_PIDS=()
-SERVER_PID=""
 
 BIN_CLIENT="client"
 BIN_SERVER="server"
@@ -11,7 +9,8 @@ LOG_DIR="logs"
 mkdir -p "$LOG_DIR"
 
 PID_FILE="/tmp/georust_demo_${UID}.pids"
-rm -f "$PID_FILE"
+SERVER_PID=""
+# rm -f "$PID_FILE"
 
 
 cleanup() {
@@ -31,7 +30,7 @@ cleanup() {
     echo -e "[+] All demo processes killed safely!"
     exit 0
 }
-trap cleanup SIGINT SIGTERM EXIT
+# trap cleanup SIGINT SIGTERM EXIT
 
 
 compile(){
@@ -49,7 +48,6 @@ compile(){
         exit 1
     fi
     echo -e "[+] $BIN_SERVER Compiled\n"
-    exit 0
 }
 
 
@@ -60,10 +58,13 @@ start(){
     fi
 
 
-    if [[ ! -f "./target/debug/$BIN_SERVER" ]] || [[ ! -f "./target/debug/$BIN_CLIENT" ]]; then
+    if [[ ! -f "./target/release/$BIN_SERVER" ]] || [[ ! -f "./target/release/$BIN_CLIENT" ]]; then
         echo "[!] Not yet compiled. Auto-compiling ..."
         compile
-    fi    
+    fi
+
+    rm -rf "$PID_FILE"
+    trap cleanup SIGINT SIGTERM EXIT
 
     (
         sleep 1
@@ -81,14 +82,20 @@ start(){
 
             CLIENT_PID=$!
             echo "$CLIENT_PID" >> "$PID_FILE"
-            echo -e "\n[!] Started $USERNAME (PID: ${PIDS[-1]}"
+            echo -e "\n[!] Started $USERNAME (PID: $CLIENT_PID"
         done
 
         echo -e "\n$CLIENTS_TO_SPAWN spawned. Press CTRL+C to stop!"
     ) &
 
+    echo "$!" >> "$PID_FILE"
+
     echo "[*] Starting $BIN_SERVER ..."
-    ./target/release/$BIN_SERVER
+    ./target/release/"$BIN_SERVER" &
+    SERVER_PID=$!
+    echo "$SERVER_PID" >> "$PID_FILE"
+    
+    wait "$SERVER_PID"
 }
 
 
