@@ -1,5 +1,6 @@
-use serde::Deserialize;
 use std::fs;
+
+use serde::Deserialize;
 use clap::Parser;
 
 /// In-memory version of the config file used during program execution
@@ -23,10 +24,14 @@ pub struct Config {
 #[derive(Parser, Debug)]
 pub struct Cli {
     /// Path to the JSON config file
-    #[arg(short, long, default_value = "./config/client_config.json")]
-    pub config: String,
+    #[arg(long, default_value = "./config/client_config.json")]
+    pub config_path: String,
 
-    /// Override server URL, e.g. ws://127.0.0.1:9001
+    /// Override coordinates file path
+    #[arg(long)]
+    pub coord_file_path: Option<String>,
+
+    /// Override server URL
     #[arg(long)]
     pub server_url: Option<String>,
 
@@ -47,19 +52,22 @@ impl Config {
     /// Loads config values from cli params.
     /// Cli params will always have priority over the config file.
     pub fn load(cli: &Cli) -> Result<Config, String> {
-        let content = fs::read_to_string(&cli.config)
-            .map_err(|e| format!("cannot read config '{}': {}", cli.config, e))?;
+        let content = fs::read_to_string(&cli.config_path)
+            .map_err(|e| format!("cannot read config '{}': {}", cli.config_path, e))?;
 
         let mut config: Config = serde_json::from_str(&content)
-            .map_err(|e| format!("invalid config '{}': {}", cli.config, e))?;
+            .map_err(|e| format!("invalid config '{}': {}", cli.config_path, e))?;
 
         config.apply_overrides(cli);
 
         Ok(config)
     }
 
-    /// Manually apply config overrides from passed cli args
+    /// Apply config overrides from passed cli args
     fn apply_overrides(&mut self, cli: &Cli) {
+        if let Some(ref coord_file_path) = cli.coord_file_path {
+            self.coord_file_path = coord_file_path.clone();
+        }
         if let Some(ref server_url) = cli.server_url {
             self.server_url = server_url.clone();
         }

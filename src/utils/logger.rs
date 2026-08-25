@@ -129,6 +129,16 @@ impl Logger {
         min_level: LogLevel,
         perf_interval: Duration,
     ) -> Result<(), InitError> {
+
+        let path = path.as_ref();
+        if let Some(parent) = path.parent() {
+            if !parent.as_os_str().is_empty() {
+                tokio::fs::create_dir_all(parent)
+                    .await
+                    .map_err(InitError::Io)?;
+            }
+        }
+
         let file = OpenOptions::new()
             .create(true)
             .append(true)
