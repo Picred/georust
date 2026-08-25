@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 CLIENTS_TO_SPAWN="$2"
+TICK_INTERVAL_MILLIS="${3:-30000}"
 
 BIN_CLIENT="client"
 BIN_SERVER="server"
@@ -20,6 +21,7 @@ cleanup() {
     if [[ -f "$PID_FILE" ]]; then
         while read -r pid; do
             if [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null; then
+                pkill -P "$pid" 2>/dev/null
                 kill "$pid" 2>/dev/null
             fi
         done < "$PID_FILE"
@@ -37,21 +39,22 @@ compile(){
         echo "$CARGO_OUT"
         exit 1
     fi
-    echo -e "[+] $BIN_CLIENT Compiled\n"
-
+    echo -e "[+] $BIN_CLIENT compiled\n"
 
     echo "[*] Compiling $BIN_SERVER ..."
     if ! CARGO_OUT=$(cargo build --release --bin "$BIN_SERVER" 2>&1); then
         echo "$CARGO_OUT"
         exit 1
     fi
-    echo -e "[+] $BIN_SERVER Compiled\n"
+    echo -e "[+] $BIN_SERVER compiled\n"
 }
 
 
 start(){
-    if ! [[ "$CLIENTS_TO_SPAWN" =~ ^[0-9]+$ ]]; then
-        echo "Usage: $0 start <N> where N indicates the number of clients to be spawned."
+    if ! [[ "$CLIENTS_TO_SPAWN" =~ ^[0-9]+$ ]] || ! [[ "$TICK_INTERVAL_MILLIS" =~ ^[0-9]+$ ]]; then
+        echo "Usage: $0 start <N> [TICK_INTERVAL_MILLIS] where: "
+        echo "   - N indicates the number of clients to be spawned"
+        echo "   - TICK_INTERVAL_MILLIS sets the coordinates sending interval"
         exit 1
     fi
 
@@ -65,22 +68,24 @@ start(){
     trap cleanup SIGINT SIGTERM EXIT
 
     (
-        sleep 1
+        sleep 5
         echo "[*] Starting $CLIENTS_TO_SPAWN clients..."
 
         for ((i = 1; i <= CLIENTS_TO_SPAWN; i++)); do
-            COORD_FILE="./data/client${i}_coordinates.txt"
+            COORD_FILE_PATH="./data/client${i}_coordinates.txt"
             USERNAME="client${i}"
             PASSWORD="password${i}"
 
             ./target/release/$BIN_CLIENT \
                 --client-username "$USERNAME" \
                 --client-password "$PASSWORD" \
+                --coord-file-path "$COORD_FILE_PATH" \
+                --tick-interval-millis "$TICK_INTERVAL_MILLIS" \
 				&
 
-            CLIENT_PID=$!
+            local CLIENT_PID=$!
             echo "$CLIENT_PID" >> "$PID_FILE"
-            echo -e "\n[!] Started $USERNAME (PID: $CLIENT_PID"
+            echo -e "\n[!] Started $USERNAME (PID: $CLIENT_PID)"
         done
 
         echo -e "\n$CLIENTS_TO_SPAWN spawned. Press CTRL+C to stop!"
@@ -89,11 +94,7 @@ start(){
     echo "$!" >> "$PID_FILE"
 
     echo "[*] Starting $BIN_SERVER ..."
-    ./target/release/"$BIN_SERVER" &
-    SERVER_PID=$!
-    echo "$SERVER_PID" >> "$PID_FILE"
-    
-    wait "$SERVER_PID"
+    ./target/release/"$BIN_SERVER"
 }
 
 
@@ -111,6 +112,6 @@ case "$1" in
         echo "Usage: ./demo.sh [compile|start|cleanup]"
         echo "  compile    — Compiles server and client source code."
         echo "  cleanup    — Manually deletes all spawned clients and the server."
-        echo "  start <N>  — starts the server and N clients."
+        echo "  start <N> [TICK_INTERVAL_MILLIS]  — starts the server and N clients."
         ;;
 esac
