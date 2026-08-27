@@ -75,9 +75,9 @@ impl ConnectionManager {
     /// 1. Spawns a background task to continuously read, parse, and execute administrative 
     ///    commands typed directly into the server's CLI console:
     ///     - `statistics <user_id> [DAY|WEEK|MONTH]` -> Shows statistics (travel, average speed, overall movement duration, 
-    ///                                                    and pause duration) for a specific user
-    ///     - `send <user_id> <message>`                -> Send the text message to a specific user
-    ///     - `broadcast <messsage>`                    -> Invia il messaggio testuale a tutti gli user connessi
+    ///                                                    and pause duration) for a specific user. If the third parameter is missing then it is by default DAY
+    ///     - `send <user_id> <message>`                -> Sends the text message to a specific user
+    ///     - `broadcast <messsage>`                    -> Sends a text message to all the active users
     ///     - `help`                                    -> Shows all the commands
     /// 2. Enters an infinite loop to accept incoming TCP streams, generating a unique `Uuid`(socket_id) for each new 
     ///    connection with a user, and spawning a dedicated task that calls the `handle_connection`.
@@ -118,7 +118,21 @@ impl ConnectionManager {
                             }
                         };
 
-                        let stats = Statistics::new(RequiredTimeFrame::CurrentMonth, &manager_stdin.state.journeys_repo);
+                        let time_frame = if command_params.len() >= 3 {
+                            match command_params[2].to_uppercase().as_str() {
+                                "DAY" => RequiredTimeFrame::CurrentDay,
+                                "WEEK" => RequiredTimeFrame::CurrentWeek,   
+                                "MONTH" => RequiredTimeFrame::CurrentMonth,
+                                _ => {
+                                    println!("Error: Invalid timeframe. Use DAY, WEEK, or MONTH. Defaulting to DAY.");
+                                    RequiredTimeFrame::CurrentDay
+                                }
+                            }
+                        } else {
+                            RequiredTimeFrame::CurrentDay
+                        };
+
+                        let stats = Statistics::new(time_frame, &manager_stdin.state.journeys_repo);
                         if let Err(e) = stats.get_all(target_user_id).await {
                             println!("Error retrieving statistics: {}", e);
                         }
@@ -131,10 +145,10 @@ impl ConnectionManager {
                     }
                     "help" => {
                         println!("Available commands:");
-                        println!("  - statistics <user_id> [DAY|WEEK|MONTH]   -> Show statistics (journey, average speed, total movement duration, and pause duration) for a specific user");
-                        println!("  - send <user_id> <message>                -> Send a text message to a specific user");
-                        println!("  - broadcast <message>                     -> Send a text message to all connected users");
-                        println!("  - help                                    -> Show this message");
+                        println!("  - statistics <user_id> [DAY|WEEK|MONTH] -> Shows statistics (journey, average speed, total movement duration, and pause duration) for a specific user. if the third parameter is missing then it is by default DAY");
+                        println!("  - send <user_id> <message> -> Sends a text message to a specific user");
+                        println!("  - broadcast <message> -> Sends a text message to all connected users");
+                        println!("  - help -> Shows this message");
                     },
                     _ => {
                         println!("Unknown command. Type 'help' for a list of commands.");

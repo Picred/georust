@@ -31,7 +31,7 @@ Una volta che il server è in esecuzione, si può digitare questi comandi dirett
 
 | Comando | Cosa fa |
 | :--- | :--- |
-| `statistics <user_id> [DAY\|WEEK\|MONTH]` | Mostra le statistiche (viaggio, velocità media, durata totale del movimento e durata della pausa) per un utente specifico. |
+| `statistics <user_id> [DAY\|WEEK\|MONTH]` | Mostra le statistiche (viaggio, velocità media, durata totale del movimento e durata della pausa) per un utente specifico. Se manca il terzo parametro allora è di default DAY |
 | `send <user_id> <message>` | Invia il messaggio di testo a un utente specifico. |
 | `broadcast <message>` | Invia il messaggio testuale a tutti gli user connessi. |
 | `help` | Mostra tutti i comandi disponibili. |
