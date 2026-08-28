@@ -1,27 +1,67 @@
-# G19
+# G19 - Georust
 
-## Struttura comunicazioni
-- login: `{"action":"login", "username":"vehicle_1", "password":"password_1"}`
-- register: `{"action":"register", "username":"vehicle_1", "password":"password_1"}`
-- scelta modalità (-> le modalità possono andare in contemporanea? Se sì, le statistiche devono essere su journey già finiti e non su quello corrente): `{"mode":"tracking"}` oppure `{"mode":"statistics", "statistic":"main_speed"}` (Dobbiamo decidere se l'utente può selezionare una statistica alla volta o quando sceglie di visualizzarle le vede tutte basate sull'intervallo di tempo scelto e il journey)
-- coordinate: `{"lat": 45.4642, "lon": 9.1900, "pos_time": "2026-08-02T11:07:00Z"}`
+## Panoramica
 
-## Tabelle nel db
-### tabella journeys
+L'applicazione, scritta in Rust, istanzia un server e N client connessi ad esso. I client rappresentano dei veicoli che si spostano lungo delle coordinate geografiche che, ogni 30 secondi, vengono inviate al server. Tali dati, successivamente, possono essere utilizzati per calcolare delle statistiche sui percorsi seguiti dai veicoli.
 
-la tabella dei journey è composta da:
+## Struttura della repository
 
-- `id -> INTEGER PRIMARY KEY`
-- `user_id -> INTEGER NOT NULL`
-- `lat -> REAL NOT NULL`
-- `lon -> REAL NOT NULL`
-- `pos_time -> DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP`
+La struttura è composta nel seguente modo:
+- `docs/` - contiene la documentazione tecnica e quella che guida l'utilizzo del client/server.
+- `src/` contiene tutti i file sorgenti Rust
 
-In questa tabella il journey_id serve per fare distinzione tra i vari journey che l'user potrebbe fare (anche quelli che hanno stesse coordinate) di conseguenza bisogna fare in modo cheil journey_id nella tabella venga incrementato ogni volta che viene creato un nuovo journey. Proprio per questo è necessario:
+## Prerequisiti
 
-- definire motivo una variabile (thread-safe usando un Mutex) che tiene contiene il valore dell'id dell'ultimo journey creato
-- se si vuole creare un nuovo journey si incrementa questa variabile e poi viene assegnato questo valore all'id del nuovo journey
+Cargo
 
-E per l'interazione con il db quindi alla funzione di creazione di un nuovo record nella tabella **journeys** servono journey_id, user_id, latatitudine, longitudine, e pos_time (momento in qui l'user si trovava in quella posizione). Infatti per questo viene definita una struct **journey_waypoint** (definita in models) che contenga queste informazioni.
 
-**Il client oltre a mandare le coordinate deve segnare l'stante delle coordinate e poi mandare tutto!** -> se questa cosa la dovesse fare il server (registrare il tempo in cui arrivano le coordinate) sarebbe istante della posizione + latenze per la trasmissione del messaggio
+## Installazione
+
+Per l'installazione dell'applicativo, clonare la repository e buildare in modalità release:
+
+```bash
+git clone <url_repository>
+cd G19
+cargo build --release
+```
+
+## Avvio
+
+Avviare prima il server:
+
+```bash
+cargo run --bin server --release [-- --with-init]
+```
+
+Per avviare il client usare:
+
+```bash
+cargo run --bin client --release [--parametri_config_override]
+```
+
+Di default il client cercherà le impostazioni nel file `./config/client_config.json`. È tuttavia possibile sovrascrivere qualsiasi parametro passando i flag da riga di comando (utile, ad esempio, per far partire più veicoli diversi contemporaneamente):
+- `--config <PATH>`: Percorso custom per il file JSON di configurazione.
+- `--client-username <NOME>`: Sovrascrive lo username per il login/registrazione.
+- `--client-password <PSW>`: Sovrascrive la password.
+- `--server-url <URL>`: Sovrascrive l'indirizzo del server (es. `ws://127.0.0.1:9001`).
+- `--tick-interval-millis <MS>`: Cambia l'intervallo (in millisecondi) con cui viene inviato ogni punto GPS.
+### Esempio di utilizzo (Guida rapida)
+
+1. Avviare il server.
+2. Avviare un client per connettere un veicolo al server. Il client inizierà a inviare le proprie coordinate GPS in automatico.
+3. Dal terminale del client, è possibile digitare il comando `STOP` per mettere in pausa l'invio delle coordinate.
+4. Dal terminale del server, è possibile interagire digitando:
+   - `statistics <id_veicolo> [DAY|WEEK|MONTH]` per calcolare i km percorsi e la velocità media.
+   - `send <user_id> <message>` per inviare un messaggio a veicolo specifico
+   - `broadcast <messaggio>` per inviare un messaggio a tutti i veicoli connessi.
+
+Per i manuali completi con la spiegazione dettagliata di tutti i parametri di configurazione, i comandi della CLI e le scelte architetturali, fare riferimento ai documenti presenti nella cartella `docs/`.
+
+
+
+## Autori
+
+- Amedeo Marino
+- Andrei Daniel Stefan
+- Thimoty Paduraru
+- Melissa Massarenti

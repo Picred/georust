@@ -3,14 +3,14 @@ use G19::utils::message::Message;
 
 pub async fn send(command_params: &[&str], manager: &ConnectionManager) {
     if command_params.len() < 3 {
-        println!("Uso corretto: send <user_id> <messaggio>");
+        println!("[MESSAGES] Correct usage: send <user_id> <message>");
         return;
     }
 
     let target_user_id = match command_params[1].parse::<i64>() {
         Ok(id) => id,
         Err(_) => {
-            println!("Errore: <user_id> deve essere un numero intero.");
+            println!("[MESSAGES] Error: <user_id> must be an integer.");
             return;
         }
     };
@@ -21,7 +21,7 @@ pub async fn send(command_params: &[&str], manager: &ConnectionManager) {
     let json_string = match serde_json::to_string(&msg) {
         Ok(json) => json,
         Err(e) => {
-            println!("Errore di serializzazione JSON: {}", e);
+            println!("[MESSAGES] JSON serialization error: {}", e);
             return;
         }
     };
@@ -33,9 +33,9 @@ pub async fn send(command_params: &[&str], manager: &ConnectionManager) {
     for socket in sockets_guard.values() {
         if socket.user_id == Some(target_user_id) {
             if socket.tx.send(ws_msg.clone()).await.is_ok() {
-                println!("Messaggio inviato all'utente {}", target_user_id);
+                println!("[MESSAGES] Message sent to user {}", target_user_id);
             } else {
-                println!("Errore: canale chiuso per l'utente {}", target_user_id);
+                println!("[MESSAGES] Error: channel closed for user {}", target_user_id);
             }
             found = true;
             break;
@@ -43,13 +43,13 @@ pub async fn send(command_params: &[&str], manager: &ConnectionManager) {
     }
 
     if !found {
-        println!("Utente {} non trovato o non autenticato.", target_user_id);
+        println!("[MESSAGES] User {} not found or not authenticated.", target_user_id);
     }
 }
 
 pub async fn broadcast(command_params: &[&str], manager: &ConnectionManager) {
     if command_params.len() < 2 {
-        println!("Uso corretto: broadcast <messaggio>");
+        println!("[MESSAGES] Correct usage: broadcast <message>");
         return;
     }
 
@@ -59,7 +59,7 @@ pub async fn broadcast(command_params: &[&str], manager: &ConnectionManager) {
     let json_string = match serde_json::to_string(&msg) {
         Ok(json) => json,
         Err(e) => {
-            println!("Errore di serializzazione JSON: {}", e);
+            println!("[MESSAGES] JSON serialization error: {}", e);
             return;
         }
     };
@@ -76,5 +76,6 @@ pub async fn broadcast(command_params: &[&str], manager: &ConnectionManager) {
         }
     }
 
-    println!("Messaggio in broadcast inviato a {} utenti attivi.", count);
+    println!("[MESSAGES] Broadcast message sent to {} active users.", count);
 }
+

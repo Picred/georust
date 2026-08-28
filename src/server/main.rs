@@ -1,38 +1,37 @@
-// DEVELOPMENT
-// -----------------------
-// Non cancellabile
 pub mod authenticator;
+pub mod connection_manager;
 pub mod database;
 pub mod models;
 pub mod repository;
+pub mod server_messaging;
 pub mod statistics;
-pub mod connection_manager;
 pub mod user_session_handler;
 pub mod user_state_handler;
 pub mod utils;
-pub mod server_messaging;
-// -----------------------
 
 use database::init_db;
-use std::{error::Error, sync::Arc};
-use tokio::net::TcpListener;
 use sqlx::{Pool, Sqlite};
+use std::{env::args, error::Error, sync::Arc};
+use tokio::net::TcpListener;
 
-use crate::{connection_manager::ConnectionManager};
+use crate::connection_manager::ConnectionManager;
 
-use G19::utils::logger::{Logger, LogLevel, LogModule};
+use G19::utils::logger::{LogLevel, LogModule, Logger};
 use std::time::Duration;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    let reset_tables_flag = args()
+        .collect::<Vec<String>>()
+        .contains(&"--with-init".to_string());
 
-    Logger::init("logs/server.log", LogLevel::Info, Duration::from_secs(3))
+    Logger::init("logs/server.log", LogLevel::Debug, Duration::from_secs(3))
         .await
         .expect("failed to init logger");
 
     G19::info!(LogModule::Main, "startup", "Georust server starting up");
 
-    let pool:Pool<Sqlite> = init_db(false).await?;
+    let pool: Pool<Sqlite> = init_db(reset_tables_flag).await?;
     let manager = Arc::new(ConnectionManager::new(pool));
     let addr = "127.0.0.1:9001".to_string();
     let listener = TcpListener::bind(&addr).await?;
@@ -42,4 +41,3 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     Ok(())
 }
-

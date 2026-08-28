@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use G19::LogModule;
 use sqlx::{
     Pool, Sqlite,
     sqlite::{SqliteConnectOptions, SqlitePoolOptions},
@@ -23,7 +24,8 @@ pub async fn init_db(reset_tables: bool) -> Result<Pool<Sqlite>, sqlx::Error> {
         sqlx::query("DROP TABLE IF EXISTS journeys")
             .execute(&pool)
             .await?;
-        println!("[INFO] Database reset");
+        
+        G19::warn!(LogModule::Database, "databse_reset", "Database reset!");
     }
 
     sqlx::query(
@@ -51,6 +53,7 @@ pub async fn init_db(reset_tables: bool) -> Result<Pool<Sqlite>, sqlx::Error> {
     .execute(&pool)
     .await?;
 
+    G19::info!(LogModule::Database, "database_init", "Database connection pool established");
 
     Ok(pool)
 }
