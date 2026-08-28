@@ -1,5 +1,3 @@
-use std::fmt::format;
-
 use G19::LogModule;
 use sqlx::{Pool, Sqlite, Row};
 
@@ -107,11 +105,10 @@ mod tests {
     use super::*;
     use sqlx::SqlitePool;
 
-    // db in ram
     async fn setup_db() -> SqlitePool {
         let pool = SqlitePool::connect("sqlite::memory:")
             .await
-            .expect("errore di connessione al db in ram");
+            .expect("connection error with RAM db ");
 
         sqlx::query(
             "CREATE TABLE users (
@@ -122,7 +119,7 @@ mod tests {
         )
         .execute(&pool)
         .await
-        .expect("Impossibile creare la tabella users");
+        .expect("Cannot create users table");
 
         pool
     }
