@@ -1,4 +1,4 @@
-# Documentazione utilizzo client
+# Documentazione utilizzo server
 
 Questa guida spiega come avviare e utilizzare il server Georust
 

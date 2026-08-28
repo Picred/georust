@@ -52,6 +52,7 @@ Di default il client cercherà le impostazioni nel file `./config/client_config.
 3. Dal terminale del client, è possibile digitare il comando `STOP` per mettere in pausa l'invio delle coordinate.
 4. Dal terminale del server, è possibile interagire digitando:
    - `statistics <id_veicolo> [DAY|WEEK|MONTH]` per calcolare i km percorsi e la velocità media.
+   - `send <user_id> <message>` per inviare un messaggio a veicolo specifico
    - `broadcast <messaggio>` per inviare un messaggio a tutti i veicoli connessi.
 
 Per i manuali completi con la spiegazione dettagliata di tutti i parametri di configurazione, i comandi della CLI e le scelte architetturali, fare riferimento ai documenti presenti nella cartella `docs/`.
