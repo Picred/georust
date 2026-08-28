@@ -94,7 +94,7 @@ start(){
     echo "$!" >> "$PID_FILE"
 
     echo "[*] Starting $BIN_SERVER ..."
-    ./target/release/"$BIN_SERVER"
+    ./target/release/"$BIN_SERVER" -- --with-init
 }
 
 
