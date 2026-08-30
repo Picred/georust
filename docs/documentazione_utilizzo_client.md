@@ -18,7 +18,7 @@ Il file di configurazione json indica al client l'indirizzo del server, quanto f
 ```json
 {
   "server_url": "ws://127.0.0.1:9001",
-  "coord_file_path": "./data/positions.json",
+  "coord_file_path": "./data/positions.txt",
   "tick_interval_millis": 5000,
   "client_username": "veicolo_test1",
   "client_password": "password_test"
@@ -28,7 +28,7 @@ Il file di configurazione json indica al client l'indirizzo del server, quanto f
 | Campo                     | Significato                                                                   |
 |-----------------------------|-----------------------------------------------------------------------------|
 | `server_url`                | Indirizzo del server Georust a cui connettersi.                            |
-| `coord_file_path`           | Percorso del file contenente le posizioni da inviare, in ordine.           |
+| `coord_file_path`           | Percorso del file contenente le posizioni da inviare.           |
 | `tick_interval_millis`      | Ogni quanti millisecondi viene inviata una nuova posizione una volta avviato l'invio. Esempio: `5000` = ogni 5 secondi. |
 | `client_username`           | Il nome utente usato per il login (o per la registrazione, se non esiste ancora). |
 | `client_password`           | La password usata per il login (o per la registrazione).                   |
@@ -40,6 +40,7 @@ Il client accetta parametri opzionali da riga di comando, utili per sovrascriver
 | Parametro                      | Cosa fa                                                        |
 |--------------------------------|--------------------------------------------------------------------------|
 | `--config <percorso>`          | Percorso del file di configurazione da usare. Il valore predefinito è `./config/client_config.json`. |
+| `coord_file_path`              | Socrascrive il percorso del file contenente le posizioni da inviare.           |
 | `--server-url <url>`           | Sovrascrive l'indirizzo del server indicato nel file di configurazione, solo per questa esecuzione. |
 | `--client-username <nome>`     | Sovrascrive il nome utente indicato nel file di configurazione, solo per questa esecuzione. |
 | `--client-password <password>` | Sovrascrive la password indicata nel file di configurazione, solo per questa esecuzione. |
