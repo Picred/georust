@@ -11,10 +11,10 @@ use super::repository::server_state::ServerState;
 use serde::{Deserialize, Serialize};
 use super::repository::users_repository::AuthenticationStatus;
 use super::user_session_handler::handle_user_session;
-
 use tokio::io::{AsyncBufReadExt, BufReader};
 use super::statistics::{Statistics, RequiredTimeFrame};
 use super::server_messaging;
+use G19::LogModule;
 
 
 // struct per la ocmunicazione in fase di login/register
@@ -75,9 +75,9 @@ impl ConnectionManager {
     /// 1. Spawns a background task to continuously read, parse, and execute administrative 
     ///    commands typed directly into the server's CLI console:
     ///     - `statistics <user_id> [DAY|WEEK|MONTH]` -> Shows statistics (travel, average speed, overall movement duration, 
-    ///                                                    and pause duration) for a specific user
-    ///     - `send <user_id> <message>`                -> Send the text message to a specific user
-    ///     - `broadcast <messsage>`                    -> Invia il messaggio testuale a tutti gli user connessi
+    ///                                                    and pause duration) for a specific user. If the third parameter is missing then it is by default DAY
+    ///     - `send <user_id> <message>`                -> Sends the text message to a specific user
+    ///     - `broadcast <messsage>`                    -> Sends a text message to all the active users
     ///     - `help`                                    -> Shows all the commands
     /// 2. Enters an infinite loop to accept incoming TCP streams, generating a unique `Uuid`(socket_id) for each new 
     ///    connection with a user, and spawning a dedicated task that calls the `handle_connection`.
@@ -86,7 +86,7 @@ impl ConnectionManager {
     /// - `self`     -> is an Arc<ConnectionManger> because it should be used by all the asynchronous task generated in this method
     /// - `listener` -> The pre-bound asynchronous `TcpListener` configured to accept incoming connections.
     pub async fn run(self: Arc<Self>, listener: TcpListener) {
-        println!("Server attivo");
+        println!("Server running");
 
         // Spawn of background task to read the commands from server's CLI
         let manager_stdin = self.clone();
@@ -94,7 +94,7 @@ impl ConnectionManager {
             let stdin = tokio::io::stdin();
             let mut reader = BufReader::new(stdin).lines();
             
-            println!("Console dei comandi attiva. Digita un comando:");
+            println!("Command console active. Enter a command:");
 
             while let Ok(Some(line)) = reader.next_line().await {
                 let trimmed = line.trim();
@@ -106,21 +106,35 @@ impl ConnectionManager {
                 match command_params[0] { // match command type
                     "statistics" => {
                         if command_params.len() < 2 {
-                            println!("Uso corretto: statistics <user_id> [DAY|WEEK|MONTH]");
+                            println!("Correct usage: statistics <user_id> [DAY|WEEK|MONTH]");
                             continue;
                         }
 
                         let target_user_id = match command_params[1].parse::<i64>() {
                             Ok(id) => id,
                             Err(_) => {
-                                println!("Errore: <user_id> deve essere un numero intero valido.");
+                                println!("Error: <user_id> must be a valid integer.");
                                 continue;
                             }
                         };
 
-                        let stats = Statistics::new(RequiredTimeFrame::CurrentMonth, &manager_stdin.state.journeys_repo);
+                        let time_frame = if command_params.len() >= 3 {
+                            match command_params[2].to_uppercase().as_str() {
+                                "DAY" => RequiredTimeFrame::CurrentDay,
+                                "WEEK" => RequiredTimeFrame::CurrentWeek,   
+                                "MONTH" => RequiredTimeFrame::CurrentMonth,
+                                _ => {
+                                    println!("Error: Invalid timeframe. Use DAY, WEEK, or MONTH. Defaulting to DAY.");
+                                    RequiredTimeFrame::CurrentDay
+                                }
+                            }
+                        } else {
+                            RequiredTimeFrame::CurrentDay
+                        };
+
+                        let stats = Statistics::new(time_frame, &manager_stdin.state.journeys_repo);
                         if let Err(e) = stats.get_all(target_user_id).await {
-                            println!("Errore durante il recupero delle statistiche: {}", e);
+                            println!("Error retrieving statistics: {}", e);
                         }
                     }
                     "send" => {
@@ -130,14 +144,14 @@ impl ConnectionManager {
                         server_messaging::broadcast(&command_params, &manager_stdin).await;
                     }
                     "help" => {
-                        println!("Comandi disponibili:");
-                        println!("  - statistics <user_id> [DAY|WEEK|MONTH]   -> Mostra le statistiche (tragitto, velocità media durata complessiva del movimento e durata delle pause) per uno specifico user");
-                        println!("  - send <user_id> <message>                -> Invia il messaggio testuale a uno specifico user");
-                        println!("  - broadcast <messsage>                    -> Invia il messaggio testuale a tutti gli user connessi");
-                        println!("  - help                                    -> Mostra questo messaggio");
+                        println!("Available commands:");
+                        println!("  - statistics <user_id> [DAY|WEEK|MONTH] -> Shows statistics (journey, average speed, total movement duration, and pause duration) for a specific user. if the third parameter is missing then it is by default DAY");
+                        println!("  - send <user_id> <message> -> Sends a text message to a specific user");
+                        println!("  - broadcast <message> -> Sends a text message to all connected users");
+                        println!("  - help -> Shows this message");
                     },
                     _ => {
-                        println!("Comando sconosciuto. Digita 'help' per la lista dei comandi.");
+                        println!("Unknown command. Type 'help' for a list of commands.");
                     }
                 }
             }
@@ -149,15 +163,16 @@ impl ConnectionManager {
             let manager = self.clone();
         
             let socket_id = Uuid::new_v4();
-            println!("Nuova connessione TCP accettata. Assegnato Socket ID: {}", socket_id);
+            G19::info!(LogModule::ConnectionManager, "connection_accept", "New TCP connection accepted. Assigned Socket ID: {}", socket_id);
 
             tokio::spawn(async move {
                 if let Err(e) = manager.handle_connection(stream, socket_id).await {
-                    eprintln!("Errore nella gestione della connessione [{}]: {:?}", socket_id, e);
+                    G19::error!(LogModule::ConnectionManager, "connection_error", "Error handling connection [socket_id: {}]: {:?}", socket_id, e);
                 }
             });
         }
     }
+
 
 
     /// Manages the initial lifecycle of a single accepted TCP connection:
@@ -212,9 +227,9 @@ impl ConnectionManager {
             // thus interrupting the authentication phase)
             if let Message::Close(frame) = &msg {
                 if let Some(cf) = frame {
-                    println!("Client disconnesso durante l'auth. Codice: {}, Motivo: {}", cf.code, cf.reason);
+                    G19::warn!(LogModule::ConnectionManager, "connection_closing", "Client disconnected during authentication. Code: {}, Reason: {}", cf.code, cf.reason);
                 } else {
-                    println!("Client disconnesso durante l'auth senza dettagli.");
+                    G19::warn!(LogModule::ConnectionManager, "connection_closing", "Client disconnected during authentication without details");
                 }
                 break; 
             }
@@ -228,7 +243,7 @@ impl ConnectionManager {
                     Err(_) => {
                         let err_resp = AuthResponse {
                             status: "error".into(),
-                            message: "JSON non valido. Invia le credenziali per accedere.".into(),
+                            message: "Invalid JSON. Please send credentials to log in.".into(),
                         };
                         if let Ok(json) = serde_json::to_string(&err_resp) {
                             let _ = tx.send(Message::Text(json.into())).await;
@@ -237,7 +252,7 @@ impl ConnectionManager {
                     }
                 };
 
-                match auth_data.action.as_str() { // check JSON's fiels -> "action": "..."
+                match auth_data.action.as_str() { // check JSON's fields -> "action": "..."
 
                     "login" => {
                         match self.state.users_repo.validate_user_credentials(&auth_data.username, auth_data.password.as_bytes()).await {
@@ -256,7 +271,7 @@ impl ConnectionManager {
                                 // Send success message
                                 let resp = AuthResponse {
                                     status: "success".into(),
-                                    message: format!("Login effettuato! Benvenuto {}", auth_data.username),
+                                    message: format!("Login successful! Welcome {}", auth_data.username),
                                 };
                                 if let Ok(json) = serde_json::to_string(&resp) {
                                     let _ = tx.send(Message::Text(json.into())).await;
@@ -269,13 +284,13 @@ impl ConnectionManager {
 
                             // Failure case for invalid credentials
                             Ok(AuthenticationStatus::InvalidCredentials) => {
-                                let resp = AuthResponse { status: "error".into(), message: "Username o password errati.".into(),};
+                                let resp = AuthResponse { status: "error".into(), message: "Invalid username or password.".into(),};
                                 if let Ok(json) = serde_json::to_string(&resp) { let _ = tx.send(Message::Text(json.into())).await; }
                             }
 
                             // Failure case for DB error
                             Err(e) => {
-                                let resp = AuthResponse { status: "error".into(), message: format!("Errore DB: {}", e),};
+                                let resp = AuthResponse { status: "error".into(), message: format!("DB Error: {}", e),};
                                 if let Ok(json) = serde_json::to_string(&resp) { let _ = tx.send(Message::Text(json.into())).await; }
                             }
                         }
@@ -287,7 +302,7 @@ impl ConnectionManager {
                             Ok(_id) => {
                                 let resp = AuthResponse {
                                     status: "success".into(),
-                                    message: "Registrazione completata! Ora effettua il login.".into(),
+                                    message: "Registration completed! Please log in now.".into(),
                                 };
                                 if let Ok(json) = serde_json::to_string(&resp) {
                                     let _ = tx.send(Message::Text(json.into())).await;
@@ -300,7 +315,7 @@ impl ConnectionManager {
                             Err(e) => {
                                 let resp = AuthResponse {
                                     status: "error".into(),
-                                    message: format!("Errore registrazione (es. utente esistente): {:?}", e),
+                                    message: format!("Registration error (e.g., user already exists): {:?}", e),
                                 };
                                 if let Ok(json) = serde_json::to_string(&resp) {
                                     let _ = tx.send(Message::Text(json.into())).await;
@@ -310,16 +325,17 @@ impl ConnectionManager {
                     }
 
                     _ => {
-                        let resp = AuthResponse { status: "error".into(), message: "Usa 'login' o 'register'.".into(),};
+                        let resp = AuthResponse { status: "error".into(), message: "Use either 'login' or 'register'.".into(),};
                         if let Ok(json) = serde_json::to_string(&resp) { let _ = tx.send(Message::Text(json.into())).await; }
                     }
                 }
             }
+
         }
 
         // Cleanup to disconession
         self.sockets.write().await.remove(&socket_id);
-        println!("Socket [{}] rimosso dalla mappa globale causa disconnessione.", socket_id);
+        G19::info!(LogModule::ConnectionManager, "connection_closing", "Connection closed: removed socket [{}] from active sockets map", socket_id);
 
         Ok(())
     }
@@ -369,7 +385,7 @@ mod tests {
 
         // Establish the connection with the server
         let url = format!("ws://{}", local_addr);
-        let (ws_stream, _) = connect_async(&url).await.expect("Connessione fallita");
+        let (ws_stream, _) = connect_async(&url).await.expect("Connection failed");
         let (mut client_tx, mut client_rx) = ws_stream.split();
 
 
@@ -379,10 +395,10 @@ mod tests {
 
         // Wait for the server response
         if let Some(Ok(Message::Text(response))) = client_rx.next().await {
-            assert!(response.contains("success"), "La registrazione è fallita: {}", response);
-            assert!(response.contains("Registrazione completata!"), "Messaggio di conferma della registrazione errato");
+            assert!(response.contains("success"), "Registration failed: {}", response);
+            assert!(response.contains("Registration completed!"), "Incorrect registration confirmation message");
         } else {
-            panic!("Non è stata ricevuta una risposta di testo valida per la registrazione");
+            panic!("Valid text response for registration was not received");
         }
 
 
@@ -392,10 +408,10 @@ mod tests {
 
         // Wait for the server response
         if let Some(Ok(Message::Text(response))) = client_rx.next().await {
-            assert!(response.contains("success"), "Il login è fallito: {}", response);
-            assert!(response.contains("Login effettuato!"), "Messaggio di benvenuto errato");
+            assert!(response.contains("success"), "Login failed: {}", response);
+            assert!(response.contains("Login successful!"), "Incorrect welcome message");
         } else {
-            panic!("Non è stata ricevuta una risposta di testo valida per il login");
+            panic!("Valid text response for login was not received");
         }
 
         // ACTIVE PING TEST
@@ -403,13 +419,13 @@ mod tests {
         // Now we test whether the server sends the active PING (set to 10 seconds in the server)
         // We use a timeout on the test to avoid hanging if the server fails
         let msg_dal_server = tokio::time::timeout(Duration::from_secs(12), client_rx.next()).await
-            .expect("Il server non ha mandato il Ping entro i 10-12 secondi stimati")
+            .expect("Server did not send Ping within the estimated 10-12 seconds")
             .unwrap().unwrap();
 
         // The client verifies that a Ping has arrived and responds with a Pong (as the actual vehicle would do)
-        assert!(msg_dal_server.is_ping(), "Il messaggio ricevuto dal server non è un Ping!");
+        assert!(msg_dal_server.is_ping(), "The message received from the server is not a Ping!");
         client_tx.send(Message::Pong(vec![])).await.unwrap();
-        println!("Test: Ricevuto Ping dal server e risposto con Pong correttamente.");
+        println!("Test: Received Ping from server and responded with Pong successfully.");
 
         // GPS COORDINATES SUBMISSION TEST
         // Construct a JSON string that matches your 'Coordinates' struct
@@ -430,11 +446,7 @@ mod tests {
         client_tx.send(Message::Text("STOP".into())).await.unwrap();
 
         if let Some(Ok(Message::Text(stop_confirm))) = client_rx.next().await {
-            assert!(stop_confirm.contains("Tracking interrotto con successo"), "Il server non ha risposto correttamente allo STOP");
+            assert!(stop_confirm.contains("Tracking successfully stopped"), "Server did not respond correctly to STOP");
         }
     }
 }
-
-
-
-

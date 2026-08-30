@@ -57,7 +57,7 @@ impl<'a> Statistics<'a> {
         let total_pauses_hours = self.get_pauses_hours_by_user_id(user_id).await?;
 
         println!(
-            "[STATISTICS] Veicolo [{:}]: Tragitto Percorso: {:.2} km | Velocità media: {:.2} km/h | Durata complessiva del movimento: {:.2} ore | Durata delle pause: {:.2} ore.",
+            "[STATISTICS] Vehicle [{}]: Traveled distance: {:.3} km | Average speed: {:.3} km/h | Total travel duration: {:.3} hours | Total pauses duration: {:.3} ore.",
             user_id, traveled_distance, average_speed, full_journeys_duration, total_pauses_hours
         );
 
@@ -151,9 +151,11 @@ impl<'a> Statistics<'a> {
         let total_distance_km = calculate_total_distance_of_journeys(&journeys);
         let total_hours = calculate_total_hours_of_journeys(&journeys);
 
-        let average_speed = format!("{}", total_distance_km / total_hours)
-            .parse::<f64>()
-            .unwrap();
+        if total_hours == 0.0{
+            return Ok(0.0);
+        }
+
+        let average_speed = total_distance_km / total_hours;
 
         Ok(average_speed)
     }
@@ -185,9 +187,7 @@ impl<'a> Statistics<'a> {
             .await? as f64;
 
         let seconds_to_hours_divider = 3600.0;
-        let total_pauses_hours = format!("{}", total_pauses_seconds / seconds_to_hours_divider)
-            .parse::<f64>()
-            .unwrap();
+        let total_pauses_hours = total_pauses_seconds / seconds_to_hours_divider;
 
         Ok(total_pauses_hours)
     }
