@@ -249,3 +249,28 @@ Per alimentare la funzione principale `get_all`, la struttura implementa quattro
   - Interroga direttamente la funzione dedicata del repository `get_total_pauses_by_user_id`, la quale esegue la query analitica e restituisce il tempo totale delle pause espresso in secondi.
   - Converte il valore ottenuto da secondi a ore dividendo il risultato per la costante `3600.0`.
 
+### Logger
+
+Il server è anche dotato di un modulo di logging, predisposto a due requisiti funzionali:
+- fare log strutturato degli eventi interni;
+- fare log strutturato delle performance del processo durante la sua esecuzione.
+
+Il logger come entità è stato pensato come singleton: il metodo di inizializzazione `pub async fn init(path: impl AsRef<Path> min_level: LogLevel, perf_interval: Duration,) -> Result<(), InitError>` va a creare:
+- un canale `mpsc` non bloccante;
+- un task di raccolta delle performance;
+- task di scrittura su file.
+
+Oltre a ciò viene anche indicato il livello minimo da loggare e il percorso del file di log. Il sistema gestisce un unico file di log, che a lungo andare o con tanti client connessi, potrebbe dare problemi di dimensione. La scrittura su file viene fatta in maniera strutturata, utilizzando il formato `json`: ogni linea di log contiene campi ben definiti, con possibilità di analisi tramite strumenti quali OpenObserve e Grafana Loki. La struttura `json` è rappresentata tramite log struct `LogLine`:
+
+```rust
+#[derive(Debug, Clone, Serialize)]
+pub struct LogLine {
+    pub time: String,
+    pub level: LogLevel,
+    pub module: LogModule,
+    pub event: String,
+    pub message: String,
+}
+```
+
+Il modulo va ad esporre esternamente 4 macro per l'inserzione di una linea di log: `debug!`, `info!`, `warn!` ed `error!`. Tramite queste, il chiamante andrá indirettamente a scrivere sul canale come trasmettitore, senza bloccare l'esecuzione del codice. Il logger espone anche un metodo `flush`, che forza il task di scrittura a terminare l'inserzione delle linee su file. Questa routine idealmente deve essere chiamata prima che il processo vada in panico, lasciando linee interne al buffer del canale senza che queste siano scritte. Nella realtà dei fatti, data la frequenza di ricezione delle nuove linee e la velocità di scrittura del modulo, l'utilizzo del `flush` non dovrebbe essere quasi mai necessario.
