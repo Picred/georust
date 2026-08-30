@@ -2,19 +2,17 @@
 
 Il server, tramite l'utilizzo di task Tokio, si occupa della gestione delle nuove connessioni in arrivo (client) e offre una CLI usabile per inviare messaggi ai client (1...N) e richiedere delle statistiche specifiche su un certo client.
 
-## Primo avvio
+> [!NOTE]
+> Questo documento esplora l'architettura interna, i moduli e le scelte implementative del server. Per le istruzioni pratiche sull'installazione, l'avvio e l'utilizzo dei comandi CLI, consulta la **[Documentazione di Utilizzo del Server](./documentazione_utilizzo_server.md)**.
 
-Per avviare il server in modalità Release, si può usare il comando:
+## Principali Crate (Dipendenze)
 
-```bash
-cargo run --bin server --release [-- --with-init]
-```
-
-dove `--with-init` è il flag opzionale usato per resettare il database prima dell'esecuzione del server stesso.
-
-## Principali crate
-
-I principali crate utilizzati nel server sono tokio, tokio-tungstenite, sqlx, argon2 e serde_json.
+Il progetto sfrutta l'ecosistema asincrono di Rust appoggiandosi ai seguenti crate principali:
+- **`tokio`**: runtime asincrono usato per il multitasking e la gestione concorrente delle connessioni.
+- **`tokio-tungstenite`**: libreria per l'implementazione asincrona del protocollo WebSocket.
+- **`sqlx`**: per l'interazione asincrona e sicura (tramite query parametrizzate e pool di connessioni) con il database SQLite.
+- **`argon2`**: standard crittografico per l'hashing sicuro delle password.
+- **`serde_json`**: per la serializzazione e deserializzazione rapida dei pacchetti scambiati.
 
 ## Struttura e funzionalità del modulo server
 
