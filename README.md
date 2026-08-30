@@ -84,8 +84,9 @@ Lo script `./demo.sh` fornisce i seguenti comandi:
   ```bash
   ./demo.sh start <N> [TICK_INTERVAL_MILLIS]
   ```
-  > [!WARNING]
-  > Allo stato attuale, è possibile avviare al massimo 10 client validi, dato che in `./data/` sono presenti solo 10 file contenenti coordinate valide.
+  
+> [!WARNING]
+> Allo stato attuale, è possibile avviare al massimo 10 client validi, dato che in `./data/` sono presenti solo 10 file contenenti coordinate valide.
 
 - **Terminazione**: Interrompe e ripulisce in modo sicuro tutti i processi client avviati dalla demo. Questo passaggio viene richiamato automaticamente anche quando si preme `CTRL+C` dall'avvio, ma ciò comporta la terminazione anche del server.
   ```bash
