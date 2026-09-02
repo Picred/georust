@@ -1,3 +1,5 @@
+use std::io::Write as _;
+
 use futures_util::{SinkExt, StreamExt};
 use tokio::sync::mpsc;
 use tokio::time::{self, Duration};
@@ -27,33 +29,43 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut generator = CoordGenerator::init(&cfg.coord_file_path)
         .map_err(|e| format!("Error while creating CoordGenerator: {} ", e))?;
 
-    println!("Connecting to {}...", cfg.server_url);
+    // Initialise rustyline-async: all output must go through `writer` so that
+    // in-progress user input is never garbled by concurrent prints.
+    let (rl, mut writer) = console::init()
+        .map_err(|e| format!("Failed to initialise console: {e}"))?;
+
+    writeln!(writer, "Connecting to {}...", cfg.server_url)?;
     let (ws_stream, response) = connect_async(&cfg.server_url)
         .await
         .map_err(|e| format!("Failed to connect to {}: {e}", cfg.server_url))?;
-    println!("Connected (HTTP status: {})", response.status());
+    writeln!(writer, "Connected (HTTP status: {})", response.status())?;
 
     let (mut ws_write, mut ws_read) = ws_stream.split();
 
     let _ = authenticate(&cfg, &mut ws_write, &mut ws_read)
         .await
         .map_err(|e| format!("Authentication failed: {e}"))?;
-    println!("Authenticated succesfully");
+    writeln!(writer, "Authenticated successfully")?;
 
     // Channel client->server communication
     let (out_tx, out_rx) = mpsc::channel::<Message>(64);
     let (event_tx, mut event_rx) = mpsc::channel::<ConsoleEvent>(8);
 
     let writer_handle = tokio::spawn(writer_task(ws_write, out_rx));
-    let reader_handle = tokio::spawn(reader_task(ws_read));
 
+    // Give reader_task its own clone of writer so it can print server messages.
+    let reader_writer = writer.clone();
+    let reader_handle = tokio::spawn(reader_task(ws_read, reader_writer));
+
+    // Give console::run its own clone for command feedback.
+    let console_writer = writer.clone();
     let console_out_tx = out_tx.clone();
-    let console_handle = tokio::spawn(console::run(console_out_tx, event_tx));
+    let console_handle = tokio::spawn(console::run(rl, console_writer, console_out_tx, event_tx));
 
     let mut ticker = time::interval(Duration::from_millis(cfg.tick_interval_millis.into()));
     let mut sending = true;
 
-    println!("Client console succesfully initialized. Type \"help\" for available commands");
+    writeln!(writer, "Client console successfully initialized. Type \"help\" for available commands")?;
 
     loop {
         tokio::select! {
@@ -67,18 +79,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     Some(coord) => {
                         let json = serde_json::to_string(&coord).expect("failed to serialize coord");
                         if out_tx.send(Message::Text(json)).await.is_err() {
-                            eprintln!("Outgoing channel closed, stopping.");
+                            let _ = writeln!(writer, "Outgoing channel closed, stopping.");
                             break;
                         }
                     }
                     None => {
-                        println!("No more coordinates to send.");
+                        let _ = writeln!(writer, "No more coordinates to send.");
                         sending = false;
                     }
                 }
             }
             Some(event) = event_rx.recv() => {
-                if let console::LoopControl::Exit = console::handle_event(event, &mut sending) {
+                if let console::LoopControl::Exit = console::handle_event(event, &mut sending, &mut writer) {
                     break;
                 }
             }
@@ -87,9 +99,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     drop(out_tx);
 
-    let _ = writer_handle.await;
-    let _ = reader_handle.await;
     console_handle.abort();
+    let _ = writer_handle.await;
+    reader_handle.abort();
+
 
     Ok(())
 }
@@ -108,22 +121,20 @@ async fn writer_task(
 
 async fn reader_task(
     mut ws_read: impl StreamExt<Item = Result<Message, tokio_tungstenite::tungstenite::Error>> + Unpin,
+    mut writer: rustyline_async::SharedWriter,
 ) {
     while let Some(msg) = ws_read.next().await {
         match msg {
             Ok(Message::Text(json)) => {
-                println!("\n[server] {json}");
-                //println!("{:?}", json);
-                //let message: message::Message = serde_json::from_str(&json).expect("failed to deserialize server message");
-                //let body = message.body;
-                //println!("\n[server] {body}")
+                let _ = writeln!(writer, "[server] {json}");
             },
             Ok(_) => {}
             Err(e) => {
-                eprintln!("WebSocket read error: {e}");
+                let _ = writeln!(writer, "WebSocket read error: {e}");
                 break;
             }
         }
     }
-    println!("Server connection closed.");
+    let _ = writeln!(writer, "Server connection closed.");
 }
+
