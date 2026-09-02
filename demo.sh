@@ -75,13 +75,15 @@ start(){
             COORD_FILE_PATH="./data/client${i}_coordinates.txt"
             USERNAME="client${i}"
             PASSWORD="password${i}"
+            CLIENT_LOG="${LOG_DIR}/${USERNAME}.log"
 
             ./target/release/$BIN_CLIENT \
                 --client-username "$USERNAME" \
                 --client-password "$PASSWORD" \
                 --coord-file-path "$COORD_FILE_PATH" \
                 --tick-interval-millis "$TICK_INTERVAL_MILLIS" \
-				&
+                > "$CLIENT_LOG" 2>&1 \
+                    &
 
             local CLIENT_PID=$!
             echo "$CLIENT_PID" >> "$PID_FILE"
