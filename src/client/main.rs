@@ -42,9 +42,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let (mut ws_write, mut ws_read) = ws_stream.split();
 
-    let _ = authenticate(&cfg, &mut ws_write, &mut ws_read)
-        .await
-        .map_err(|e| format!("Authentication failed: {e}"))?;
+    if let Err(e) = authenticate(&cfg, &mut ws_write, &mut ws_read).await {
+        let _ = ws_write.send(Message::Close(None)).await;
+        return Err(format!("Authentication failed: {e}").into());
+    }
     writeln!(writer, "Authenticated successfully")?;
 
     // Channel client->server communication
@@ -55,7 +56,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Give reader_task its own clone of writer so it can print server messages.
     let reader_writer = writer.clone();
-    let reader_handle = tokio::spawn(reader_task(ws_read, reader_writer));
+    let mut reader_handle = tokio::spawn(reader_task(ws_read, reader_writer));
 
     // Give console::run its own clone for command feedback.
     let console_writer = writer.clone();
@@ -89,9 +90,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
             }
-            Some(event) = event_rx.recv() => {
-                if let console::LoopControl::Exit = console::handle_event(event, &mut sending, &mut writer) {
-                    break;
+            event = event_rx.recv() => {
+                match event {
+                    Some(event) => {
+                        if let console::LoopControl::Exit = console::handle_event(event, &mut sending, &mut writer) {
+                            break;
+                        }
+                    }
+                    None => {
+                        break;
+                    }
                 }
             }
             _ = tokio::signal::ctrl_c() => {
@@ -107,8 +115,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     console_handle.abort();
     let _ = writer_handle.await;
-    reader_handle.abort();
 
+    // Wait for the reader task to see the connection closed by the server
+    if tokio::time::timeout(Duration::from_secs(2), &mut reader_handle).await.is_err() {
+        reader_handle.abort();
+    }
 
     Ok(())
 }
