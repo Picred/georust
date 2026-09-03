@@ -52,9 +52,9 @@ compile(){
 
 start(){
     if ! [[ "$CLIENTS_TO_SPAWN" =~ ^[0-9]+$ ]] || ! [[ "$TICK_INTERVAL_MILLIS" =~ ^[0-9]+$ ]]; then
-        echo "Usage: $0 start <N> [TICK_INTERVAL_MILLIS] where: "
-        echo "   - N indicates the number of clients to be spawned"
-        echo "   - TICK_INTERVAL_MILLIS sets the coordinates sending interval"
+        echo "[!] Usage: $0 start <N> [TICK_INTERVAL_MILLIS] where: "
+        echo -e "\t- N indicates the number of clients to be spawned"
+        echo -e "\t- TICK_INTERVAL_MILLIS sets the coordinates sending interval"
         exit 1
     fi
 
@@ -87,10 +87,10 @@ start(){
 
             local CLIENT_PID=$!
             echo "$CLIENT_PID" >> "$PID_FILE"
-            echo -e "\n[!] Started $USERNAME (PID: $CLIENT_PID)"
+            echo "[!] Started $USERNAME (PID: $CLIENT_PID)"
         done
 
-        echo -e "\n$CLIENTS_TO_SPAWN spawned. Press CTRL+C to stop!"
+        echo "$CLIENTS_TO_SPAWN spawned. Press CTRL+C to stop!"
     ) &
 
     echo "$!" >> "$PID_FILE"
@@ -111,9 +111,9 @@ case "$1" in
         start
         ;;
     *)
-        echo "Usage: ./demo.sh [compile|start|cleanup]"
-        echo "  compile    — Compiles server and client source code."
-        echo "  cleanup    — Manually deletes all spawned clients and the server."
+        echo "[!] Usage: ./demo.sh [compile|start|cleanup]"
+        echo "  compile                           — Compiles server and client source code."
+        echo "  cleanup                           — Manually deletes all spawned clients and the server."
         echo "  start <N> [TICK_INTERVAL_MILLIS]  — starts the server and N clients."
         ;;
 esac
