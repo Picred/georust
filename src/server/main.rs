@@ -25,7 +25,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .collect::<Vec<String>>()
         .contains(&"--with-init".to_string());
 
-    Logger::init("logs/server.log", LogLevel::Debug, Duration::from_secs(3))
+    Logger::init("logs/server.log", LogLevel::Debug, Duration::from_secs(120))
         .await
         .expect("failed to init logger");
 
