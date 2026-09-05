@@ -58,6 +58,12 @@ start(){
         exit 1
     fi
 
+    if ! command -v script >/dev/null 2>&1; then
+        echo "[!] 'script' (util-linux) is required so each client gets its own"
+        echo "    pseudo-terminal instead of touching the server's console."
+        echo "    Install util-linux (it ships with virtually every Linux distro)."
+        exit 1
+    fi
 
     if [[ ! -f "./target/release/$BIN_SERVER" ]] || [[ ! -f "./target/release/$BIN_CLIENT" ]]; then
         echo "[!] Not yet compiled. Auto-compiling ..."
@@ -66,6 +72,10 @@ start(){
 
     rm -rf "$PID_FILE"
     trap cleanup SIGINT SIGTERM EXIT
+
+    # Used below to strip crossterm/rustyline-async's cursor-control escape
+    # sequences (e.g. ESC[1G, ESC[1A, ESC[?7h) out of the client logs
+    ANSI_STRIP_EXPR="s/$(printf '\033')\[[0-9;?]*[A-Za-z]//g"
 
     (
         sleep 5
@@ -77,13 +87,22 @@ start(){
             PASSWORD="password${i}"
             CLIENT_LOG="${LOG_DIR}/${USERNAME}.log"
 
-            ./target/release/$BIN_CLIENT \
-                --client-username "$USERNAME" \
-                --client-password "$PASSWORD" \
-                --coord-file-path "$COORD_FILE_PATH" \
-                --tick-interval-millis "$TICK_INTERVAL_MILLIS" \
-                > "$CLIENT_LOG" 2>&1 \
-                    &
+            # `script` gives each client its own dedicated pseudo-terminal to
+            # be raw-mode-toggled on, fully isolated from the one the server
+            # is running in.
+            CLIENT_CMD="./target/release/$BIN_CLIENT --client-username \"$USERNAME\" --client-password \"$PASSWORD\" --coord-file-path \"$COORD_FILE_PATH\" --tick-interval-millis \"$TICK_INTERVAL_MILLIS\""
+
+            # We don't use script's own file-logging (pointed at /dev/null):
+            # its on-disk log is fully buffered and only flushes on a clean
+            # exit, which a long-running, SIGTERM-killed client never gets.
+            # Instead we read script's live stdout mirror — which it writes
+            # unbuffered, since that's meant for interactive viewing — pipe
+            # it through `sed -u` (unbuffered) to strip the ANSI escapes in
+            # real time, and land the clean result in $CLIENT_LOG.
+            (
+                script -qec "$CLIENT_CMD" /dev/null 2>/dev/null \
+                    | sed -u -e "$ANSI_STRIP_EXPR" > "$CLIENT_LOG"
+            ) &
 
             local CLIENT_PID=$!
             echo "$CLIENT_PID" >> "$PID_FILE"
