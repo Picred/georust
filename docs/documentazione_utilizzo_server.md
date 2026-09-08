@@ -18,17 +18,19 @@ Una volta avviato, il server esegue in parallelo diverse operazioni:
 - **Monitoraggio e Logging**:
   - Registrazione delle performance (CPU) e tracciamento dei task in esecuzione per facilitare il debug.
 
-## Parametri di Avvio (Opzionali)
+## Avvio
 
-Il server può essere avviato con un flag opzionale. Se avviato senza argomenti, utilizzerà il comportamento di default preservando i dati esistenti.
+Avviare sempre il server prima di eventuali client:
 
-| Parametro | Descrizione |
-| :--- | :--- |
-| `--with-init` | Forza l'inizializzazione del database: tutti i dati salvati precedentemente verranno **resettati**. |
+```bash
+cargo run --bin server --release -- [--with-init]
+
+```
+dove `--with-init`  è un parametro opzionale che permette di resettare le tabelle del DB.
 
 ## Console Interattiva
 
-Quando il server è in esecuzione in foreground, rimane in ascolto degli input sul terminale. Di seguito i comandi supportati:
+Una volta avviato il server, questo lancia un task in backgroud che rimane in ascolto degli input sul terminale. Di seguito i comandi supportati:
 
 > [!IMPORTANT]
 > I comandi che richiedono il parametro `<user_id>` necessitano dell'**identificativo interno** registrato nel database per quell'utente, e non del semplice username (es. non basta digitare `client1`). Per recuperare l'ID esatto di un veicolo da inserire nel comando, è necessario verificare direttamente i record nel database.

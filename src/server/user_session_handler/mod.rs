@@ -80,15 +80,9 @@ pub async fn handle_user_session(
 
                 // Process text messages
                 if msg.is_text() {
+                
                     let text = msg.to_text().unwrap_or("");
                     
-                    // Immediate check for the STOP command
-                    if text == "STOP" {
-                        let _ = tx.send(Message::Text("Tracking successfully stopped.".into())).await;
-                        G19::info!(LogModule::UserSessionHandler, "session_closing", "User {} closed the session with a STOP message", user_id);
-                        break; // Exits the loop; execution returns to handle_connection for cleanup
-                    }
-
                     // Parsing and inserting coordinates into the SQLite database
                     if let Ok(coords) = serde_json::from_str::<Coordinates>(text) {
 
