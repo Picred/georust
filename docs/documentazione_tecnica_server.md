@@ -148,10 +148,9 @@ Il modulo mette a disposizione le seguenti funzioni di invio:
 
 ### Database
 
-Il modulo del database sqlite genera il file in `src/server/database/database.sqlite` (se non esistente) e contiene le seguenti tabelle:
+Questo modulo genera il file in `src/server/database/database.sqlite` (se non esistente) e contiene le seguenti tabelle:
 
-- users: contiene `username` e `password` usati per gestire la registrazione/login degli utenti (veicoli nel nostro caso). La password è salvata con hash usando del sale casuale.
-
+- users: contiene `username` e `password` usati per gestire la registrazione/login degli utenti (veicoli nel nostro caso). La password è salvata con hash usando del sale casuale;
 - journeys: contiene `user_id`, `lat`, `lon`, `is_stopped`, `created_at` usati per salvare le singole posizioni geografiche che il client invia periodicamente. `created_at` viene usato come timestamp per poter fare i calcoli sulle statistiche.
 
 
@@ -169,85 +168,70 @@ Le funzionalità principali offerte dal repository sono:
 
 - **get_total_pauses_by_user_id**: calcola la durata totale in secondi delle pause effettuate da un utente in un determinato intervallo di tempo.
 
+
+
+
 ### Users Repository
 
-Il modulo del repository degli utenti si occupa di gestire la persistenza dei dati e la validazione delle credenziali di accesso per la tabella `users` del database SQLite, interfacciandosi con il modulo esterno `Authenticator` per le operazioni crittografiche. La struttura `UsersRepository` contiene un pool di connessioni (`Pool<Sqlite>`) e definisce l'enum `AuthenticationStatus` per rappresentare l'esito dei tentativi di login.
+Questo modulo si occupa di gestire gestire la comunicazione con la tabella `users` del database, interfacciandosi con il modulo esterno `Authenticator` per le operazioni crittografiche. La struttura `UsersRepository` contiene un pool di connessioni (`Pool<Sqlite>`) e definisce l'enum `AuthenticationStatus` per rappresentare l'esito dei tentativi di login.
 
 L'enum `AuthenticationStatus` prevede due varianti:
-- `Success(i64)`: indica che l'autenticazione è andata a buon fine e contiene il codice univoco `user_id` dell'utente.
-- `InvalidCredentials`: indica che l'autenticazione è fallita perché l'utente non esiste o la password è errata.
+- `Success(i64)`: indica che l'autenticazione è andata a buon fine e contiene lo `user_id` inserito in tabella;
+- `InvalidCredentials`: indica che l'autenticazione è fallita.
 
-Le funzionalità principali offerte dal repository sono:
-
-- **insert_user**: permette di salvare un nuovo account (veicolo) nel database.
-  
-- **validate_user_credentials**: gestisce il flusso di login verificando se le credenziali fornite dal client sono corrette.
-
-- **get_password_and_id_by_username**: è una funzione asincrona interna usata per cercare un utente nel database partendo dal suo `username`. Esegue una query mirata che estrae l'ID e la stringa dell'hash della password.
+Le funzioni principali sono:
+- `insert_user`: permette di salvare un nuovo user (veicolo) nella tabella;
+- `validate_user_credentials`: verifica se le credenziali fornite sono corrette presenti nella tabella. Qui si usa Authenticator per gestione crittografica.
+- `get_password_and_id_by_username`: restituisce l'id e password di un user, cercando per username.
 
 
 ### Authenticator
 
-Il modulo dell'autenticatore si occupa di isolare e gestire tutte le operazioni di sicurezza crittografica del server relative alla protezione delle password degli utenti. La struttura `Authenticator` espone metodi statici puri che implementano l'algoritmo **Argon2** (lo standard crittografico moderno consigliato per contrastare attacchi brute-force e rainbow table), collaborando strettamente con lo `UsersRepository` durante le fasi di registrazione e login.
+Questo modulo si occupa di gestire tutte le operazioni di registrazione e/o login del server degli utenti.
 
-Le funzionalità offerte da questo modulo sono:
-
-- **generate_salt**: genera in modo sicuro un valore casuale (*salt*) unico per ogni password utilizzando la struttura `SaltString` combinata con un generatore di numeri casuali crittograficamente sicuro fornito dal sistema operativo (`OsRng`). Questo garantisce che utenti con la stessa password abbiano comunque hash completamente differenti memorizzati nel database.
-
-- **encrypt_password**: prende in input la password in chiaro sotto forma di slice di byte (`&[u8]`) e restituisce una stringa contenente l'hash calcolato.
-
-- **verify_password**: confronta una password inserita in chiaro in fase di login con l'hash protetto precedentemente estratto dal database.
+Le funzionalità principali sono:
+- `generate_salt`: genera un valore casuale (*salt*). Viene usato per creare l'hash della password. Utenti con la stessa password, dunque, avranno hash differenti;
+- `encrypt_password`: converte la password in chiaro presa in input e restituisce una stringa contenente l'hash calcolato;
+- `verify_password`: confronta una password inserita in chiaro in fase di login con l'hash precedentemente estratto dal database.
 
 
 ### Statistics
 
-Il modulo delle statistiche è strettamente accoppiato con il modulo `src/server/utils` perché si è deciso di separare alcune logiche in quest'ultimo modulo. 
+Questo modulo è strettamente accoppiato con il modulo `src/server/utils`, dove sono state implementate le funzionalità di calcolo puramente matematico (es. il calcolo effettivo delle distanze in km e delle differenze di orario).
 
-Il modulo `statistics` si occupa solo di definire l'intervallo di tempo e chiamare le funzioni della `journeys_repository` che, a sua volta, fa le query al DB, mentre in `utils` sono stati delegati i calcoli matematici/geografici (es. il calcolo effettivo delle distanze in km e delle differenze di orario).
+Statistics si occupa di definire l'intervallo di tempo sul quale calcolare le statistiche e usare la `journeys_repository` per le query al DB con le funzioni definite in `utils`.
 
-Per poter aggregare e calcolare le metriche, il modulo si affida a tre componenti principali:
+Per poter calcolare le metriche, il modulo si affida a tre componenti principali:
 
-- **RequiredTimeFrame**: un enum che definisce le finestre temporali supportate dal server in base alla data locale attuale. Le varianti disponibili sono `CurrentDay` (dalle 00:00:00 alle 23:59:59 di oggi), `CurrentWeek` (da lunedì a domenica della settimana corrente) e `CurrentMonth` (dal primo all'ultimo giorno del mese corrente).
-
-- **TimeRange**: una struttura di utilità che contiene due stringhe, `start` ed `end`. Rappresenta la coppia di timestamp formattati nel preciso standard richiesto dal database SQLite (`%Y-%m-%d %H:%M:%S`) per effettuare i confronti a basso livello nelle query SQL.
-
-- **Statistics**: la struttura principale che incapsula la finestra temporale scelta (`timeframe`) e un riferimento a vita limitata (`'a`) verso il `JourneysRepository`, utilizzato per effettuare le richieste estrattive.
+- `RequiredTimeFrame`: un enum che definisce le finestre temporali. Le varianti sono `CurrentDay`, `CurrentWeek` e `CurrentMonth`;
+- `TimeRange`: una struttura di utilità che contiene due stringhe, `start` ed `end`. Rappresentano i timestamp formattati nel preciso standard richiesto dal database SQLite (`%Y-%m-%d %H:%M:%S`) per effettuare i confronti.
 
 #### Funzionalità principali
 
-Il modulo mette a disposizione i seguenti metodi per la gestione e l'elaborazione dei report:
+Il modulo espone i seguenti metodi per la gestione delle statistiche:
 
-- **convert_timeframe_to_range**: si occupa di trasformare l'enum `RequiredTimeFrame` in un `TimeRange` concreto calcolato rispetto all'ora di sistema del server (`Local::now()`). Sfruttando il crate `chrono`, esegue i calcoli sui calendari (es. sottrae i giorni passati da inizio lunedì per trovare l'inizio della settimana o determina quanti giorni compongono il mese corrente) per generare le stringhe temporali esatte di inizio e fine intervallo.
-
-- **get_all**: rappresenta il punto di ingresso per estrarre il report di un veicolo identificato dal suo `user_id`. La funzione interroga in modo asincrono il modulo chiamando quattro funzioni interne specifiche per ricavare:
-  - La distanza totale percorsa (in chilometri).
-  - La velocità media (in km/h).
-  - Il tempo totale di effettivo movimento (espresso in ore).
-  - Il tempo totale trascorso in sosta o pausa (espresso in ore).
+- `convert_timeframe_to_range`: si occupa di identificare l'istante di tempo locale e, verificando la variante del RequiredTimeFrame settato, di convertirlo nella coppia di stringhe start ed end nel tipo restituito Timerange;
+- `get_all`: è un wrapper che chiama le funzioni del calcolo delle statistiche e stampa a schermo i risultati, in particolare
+  - chilometri totali percorsa (chilometri);
+  - velocità media (km/h);
+  - ore totali di movimento (ore);
+  - ore totali delle pause (ore).
   
   Una volta ottenuti tutti i risultati dalle query e calcolati i valori tramite le funzioni in `utils`, la funzione formatta i dati arrotondandoli alla terza cifra decimale (`{:.3}`) e stampa a schermo sulla console standard l'intero report sintetico del veicolo.
 
-#### Metodi interni di calcolo delle metriche
+#### Metodi privati
 
-Per alimentare la funzione principale `get_all`, la struttura implementa quattro funzioni asincrone interne che si occupano di preparare i filtri temporali, interrogare il database e formattare i risultati:
+Le funzioni chiamate dal wrapper `get_all` hanno tutte una caratteristica in comune: convertono l'intervallo temporale in un TimeRange per poi fare le chiamate al database per recuperare i risultati. In particolare:
+- `get_traveled_distance_by_user_id`: ricava i chilometri totali percorsi dal veicolo. Se sono presenti almeno due punti, viene chiamata la funzione `calculate_total_distance_of_journeys` situata nel modulo `utils` per ottenere la distanza finale, altrimenti restituisce 0.0 in quanto non è possibile stabilire uno spostamento;
 
-- **get_traveled_distance_by_user_id**: ricava i chilometri totali percorsi dal veicolo. 
-  - Ottiene l'intervallo `TimeRange` corretto e richiede l'elenco dei punti geografici al repository tramite `get_journey_by_user_id_between_times`.
-  - Se il vettore dei risultati contiene meno di 2 punti, la funzione restituisce direttamente `0.0` poiché non è possibile stabilire uno spostamento.
-  - Se sono presenti abbastanza dati, passa i punti alla funzione esterna `calculate_total_distance_of_journeys` situata nel modulo delle utilità per ottenere la distanza finale.
+- `get_average_speed_by_user_id`: calcola la velocità media espressa in km/h applicando la formula matematica **distanza_totale / ore_totali**. Se i punti sono <= 2 o se le ore totali di viaggio calcolate da `calculate_total_hours_of_journeys` sono pari a `0.0`, la funzione restituisce `0.0` per evitare divisioni per zero o errori matematici. Altrimenti, esegue la divisione tra la distanza totale e il tempo totale di viaggio e restituisce il valore ottenuto;
 
-- **get_average_speed_by_user_id**: calcola la velocità media espressa in km/h applicando la formula matematica `distanza_totale / ore_totali`.
-  - Recupera i punti geografici dal database filtrandoli per l'intervallo di tempo selezionato.
-  - Se i punti sono insufficienti (meno di 2) o se le ore totali di viaggio calcolate da `calculate_total_hours_of_journeys` sono pari a `0.0`, la funzione restituisce `0.0` per evitare divisioni per zero o errori matematici.
-  - Altrimenti, esegue la divisione tra la distanza totale e il tempo totale di viaggio e restituisce il valore ottenuto.
+- `get_full_movement_duration_by_user_id`: calcola le ore totali totale trascorso dal veicolo tra i vari punti registrati. Se sono presenti almeno 2 punti, delega il calcolo del tempo alla funzione `calculate_total_hours_of_journeys` in `utils` e ritorna il risultato;
 
-- **get_full_movement_duration_by_user_id**: calcola il tempo totale (espresso in ore) trascorso dal veicolo tra i vari punti registrati.
-  - Sfrutta lo stesso meccanismo di recupero dei dati filtrati tra le date di inizio e fine dell'intervallo temporale.
-  - Se sono presenti almeno 2 punti, delega il calcolo del tempo alla funzione di utilità `calculate_total_hours_of_journeys` e ne restituisce il risultato.
+- `get_pauses_hours_by_user_id`: recupera la durata complessiva delle soste del veicolo e la converte in ore. Il calcolo matematico è delegato alla query al database.
 
-- **get_pauses_hours_by_user_id**: recupera la durata complessiva delle soste del veicolo e la converte in ore.
-  - Interroga direttamente la funzione dedicata del repository `get_total_pauses_by_user_id`, la quale esegue la query analitica e restituisce il tempo totale delle pause espresso in secondi.
-  - Converte il valore ottenuto da secondi a ore dividendo il risultato per la costante `3600.0`.
+
+
 
 ### Logger
 

@@ -20,7 +20,7 @@ Una volta avviato, il server esegue in parallelo diverse operazioni:
 
 ## Parametri di Avvio (Opzionali)
 
-Il server può essere avviato con alcuni flag opzionali. Se avviato senza argomenti, utilizzerà il comportamento di default preservando i dati esistenti.
+Il server può essere avviato con un flag opzionale. Se avviato senza argomenti, utilizzerà il comportamento di default preservando i dati esistenti.
 
 | Parametro | Descrizione |
 | :--- | :--- |
