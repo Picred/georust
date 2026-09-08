@@ -28,7 +28,7 @@ cleanup() {
         rm -f "$PID_FILE"
     fi
 
-    echo -e "[+] All demo processes killed safely!"
+    echo -e "[+] All client demo processes killed safely!"
     exit 0
 }
 
@@ -111,7 +111,9 @@ start(){
 
         echo "$CLIENTS_TO_SPAWN spawned. Press CTRL+C to stop!"
     ) &
-
+    
+    # this is the PID of subshell just created which will launch clients. 
+    # it's possible to stop the spawninng process of N clients before the actual spawn by using ./demo.sh cleanup in a new terminal
     echo "$!" >> "$PID_FILE"
 
     echo "[*] Starting $BIN_SERVER ..."
@@ -132,7 +134,7 @@ case "$1" in
     *)
         echo "[!] Usage: ./demo.sh [compile|start|cleanup]"
         echo "  compile                           — Compiles server and client source code."
-        echo "  cleanup                           — Manually deletes all spawned clients and the server."
+        echo "  cleanup                           — Manually deletes all spawned clients."
         echo "  start <N> [TICK_INTERVAL_MILLIS]  — starts the server and N clients."
         ;;
 esac
