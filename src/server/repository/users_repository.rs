@@ -131,7 +131,7 @@ mod tests {
 
         let user_id = repo.insert_user("andrei", b"password123").await;
         assert!(user_id.is_ok());
-        assert_eq!(user_id.unwrap(), 1); // Primo utente inserito deve avere ID 1
+        assert_eq!(user_id.unwrap(), 1); // First inserted user must have ID 1
     }
 
     #[tokio::test]
@@ -173,7 +173,7 @@ mod tests {
         let repo = UsersRepository::new(pool);
 
         let status = repo
-            .validate_user_credentials("non_esisto", b"password123")
+            .validate_user_credentials("does_not_exist", b"password123")
             .await
             .unwrap();
 

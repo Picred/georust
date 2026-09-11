@@ -17,10 +17,10 @@ use super::server_messaging;
 use G19::LogModule;
 
 
-// struct per la ocmunicazione in fase di login/register
+// Struct for communication during login/register phase
 #[derive(Deserialize)]
 struct AuthRequest {
-    action: String, // "login" o "register"
+    action: String, // "login" or "register"
     username: String,
     password: String,
 }
@@ -64,7 +64,7 @@ impl ConnectionManager {
         }
     }
 
-    // ottenere user_id partendo da socked_id
+    // Get user_id from socket_id
     pub async fn get_user_id_by_socket_id(&self, socket_id: &Uuid) -> Option<i64> {
         let guard = self.sockets.read().await;
         guard.get(socket_id).and_then(|socket| socket.user_id)
@@ -157,8 +157,8 @@ impl ConnectionManager {
             }
         });
 
-        // Loop that spawna tasks to handle each user's connection
-        while let Ok((stream, _)) = listener.accept().await {   // si stabiliste la connessione TCP
+        // Loop that spawns tasks to handle each user's connection
+        while let Ok((stream, _)) = listener.accept().await {   // TCP connection established
 
             let manager = self.clone();
         

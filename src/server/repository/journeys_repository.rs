@@ -117,11 +117,11 @@ mod tests {
     use crate::repository::users_repository::UsersRepository;
     use sqlx::SqlitePool;
 
-    // db in ram
+    // RAM database
     async fn setup_db() -> SqlitePool {
         let pool = SqlitePool::connect("sqlite::memory:")
             .await
-            .expect("errore di connessione al db in ram");
+            .expect("RAM database connection error");
 
         sqlx::query(
             "CREATE TABLE users (
@@ -132,7 +132,7 @@ mod tests {
         )
         .execute(&pool)
         .await
-        .expect("Impossibile creare la tabella users");
+        .expect("Cannot create users table");
 
         sqlx::query(
             "CREATE TABLE IF NOT EXISTS journeys (
@@ -147,7 +147,7 @@ mod tests {
         )
         .execute(&pool)
         .await
-        .expect("Impossibile creare la tabella journeys");
+        .expect("Cannot create journeys table");
 
         pool
     }
@@ -166,7 +166,7 @@ mod tests {
         }
     }
 
-    #[tokio::test] // 1. Aggiunto l'attributo per il test asincrono
+    #[tokio::test] // 1. Added attribute for async test
     async fn test_get_full_journey_by_user_id_success() {
         let pool = setup_db().await;
         let users_repo = UsersRepository::new(pool.clone());
@@ -174,7 +174,7 @@ mod tests {
 
         let result: Result<i64, sqlx::Error> = users_repo.insert_user("test", b"pswtest").await;
         if let Ok(user_id) = result {
-            // inserimento di tuple in journeys
+            // inserting tuples into journeys
             journeys_repo.insert_journey_waypoint(user_id, 45.4642, 9.1900, "2026-08-05 12:00:00".to_string(), false).await.unwrap();
             journeys_repo.insert_journey_waypoint(user_id, 45.4650, 9.1950, "2026-08-05 12:15:00".to_string(), false).await.unwrap();
             
@@ -194,7 +194,7 @@ mod tests {
 
         let result: Result<i64, sqlx::Error> = users_repo.insert_user("test", b"pswtest").await;
         if let Ok(user_id) = result {
-            // Usiamo ? anche qui per pulizia, dato che la funzione ora restituisce Result
+            // Using ? here too for cleanliness, since the function now returns Result
             journeys_repo.insert_journey_waypoint(user_id, 45.4642, 9.1900, "2026-08-05 12:15:00".to_string(), false).await.unwrap();
             journeys_repo.insert_journey_waypoint(user_id, 45.4650, 9.1950, "2026-08-05 12:15:01".to_string(), false).await.unwrap();
             journeys_repo.insert_journey_waypoint(user_id, 45.4650, 9.1955, "2026-08-05 12:15:02".to_string(), false).await.unwrap();
@@ -207,7 +207,7 @@ mod tests {
                 println!("{:?}", journey_waypoint);
             }
 
-            assert_eq!(journey.len(), 3, "I journey_waypoint non sono 3");
+            assert_eq!(journey.len(), 3, "There should be 3 journey_waypoints");
             assert_eq!(journey[0].lon, 9.1950);
             assert_eq!(journey[1].lon, 9.1955); 
             assert_eq!(journey[1].lat, 45.4650); 
@@ -226,7 +226,7 @@ mod tests {
 
         let result: Result<i64, sqlx::Error> = users_repo.insert_user("test", b"pswtest").await;
         if let Ok(user_id) = result {
-            // Usiamo ? anche qui per pulizia, dato che la funzione ora restituisce Result
+            // Using ? here too for cleanliness, since the function now returns Result
             journeys_repo.insert_journey_waypoint(user_id, 45.4642, 9.1900, "2026-08-05 12:15:00".to_string(), false).await.unwrap();
             journeys_repo.insert_journey_waypoint(user_id, 45.4650, 9.1950, "2026-08-05 12:15:01".to_string(), false).await.unwrap();
             journeys_repo.insert_journey_waypoint(user_id, 45.4650, 9.1955, "2026-08-05 12:15:02".to_string(), false).await.unwrap();
@@ -234,12 +234,12 @@ mod tests {
             journeys_repo.insert_journey_waypoint(user_id, 45.4655, 9.1970, "2026-08-05 12:15:04".to_string(), false).await.unwrap();
             journeys_repo.insert_journey_waypoint(user_id, 45.4663, 9.1971, "2026-08-05 12:15:05".to_string(), false).await.unwrap();
             
-            let journey = journeys_repo.get_journey_by_user_id_between_times(user_id, "stat_time sbagliato".to_string(), "2026-08-05 12:15:03".to_string()).await.unwrap();
+            let journey = journeys_repo.get_journey_by_user_id_between_times(user_id, "invalid_start_time".to_string(), "2026-08-05 12:15:03".to_string()).await.unwrap();
             for journey_waypoint in &journey {
                 println!("{:?}", journey_waypoint);
             }
 
-            assert_eq!(journey.len(), 0, "Ci sono journey_waypoint quando dovrebbero essere 0");
+            assert_eq!(journey.len(), 0, "There are journey_waypoints when there should be 0");
         }
     }
 
@@ -251,7 +251,7 @@ mod tests {
 
         let result: Result<i64, sqlx::Error> = users_repo.insert_user("test", b"pswtest").await;
         if let Ok(user_id) = result {
-            // Usiamo ? anche qui per pulizia, dato che la funzione ora restituisce Result
+            // Using ? here too for cleanliness, since the function now returns Result
             journeys_repo.insert_journey_waypoint(user_id, 45.4642, 9.1900, "2026-08-05 12:15:00".to_string(), false).await.unwrap();
             journeys_repo.insert_journey_waypoint(user_id, 45.4650, 9.1950, "2026-08-05 12:15:01".to_string(), true).await.unwrap();
             journeys_repo.insert_journey_waypoint(user_id, 45.4650, 9.1955, "2026-08-05 12:15:02".to_string(), true).await.unwrap();
@@ -262,7 +262,7 @@ mod tests {
             let duration = journeys_repo.get_total_pauses_by_user_id(user_id, "2026-08-05 12:15:00".to_string(), "2026-08-05 12:15:05".to_string()).await.unwrap();
             println!("Pauses duration: {} seconds", duration);
 
-            assert_eq!(duration, 2, "La durata delle pause calcolata è sbagliata");
+            assert_eq!(duration, 2, "Calculated pause duration is incorrect");
         }
     }
 
@@ -276,7 +276,7 @@ mod tests {
 
         let result: Result<i64, sqlx::Error> = users_repo.insert_user("test", b"pswtest").await;
         if let Ok(user_id) = result {
-            // Usiamo ? anche qui per pulizia, dato che la funzione ora restituisce Result
+            // Using ? here too for cleanliness, since the function now returns Result
             journeys_repo.insert_journey_waypoint(user_id, 45.4642, 9.1900, "2026-08-05 12:15:00".to_string(), false).await.unwrap();
             journeys_repo.insert_journey_waypoint(user_id, 45.4650, 9.1950, "2026-08-05 12:15:01".to_string(), false).await.unwrap();
             journeys_repo.insert_journey_waypoint(user_id, 45.4650, 9.1955, "2026-08-05 12:15:02".to_string(), false).await.unwrap();
@@ -287,7 +287,7 @@ mod tests {
             let duration = journeys_repo.get_total_pauses_by_user_id(user_id, "2026-08-05 12:15:00".to_string(), "2026-08-05 12:15:05".to_string()).await.unwrap();
             println!("Pauses duration: {} seconds", duration);
 
-            assert_eq!(duration, 0, "La durata delle pause calcolata è sbagliata");
+            assert_eq!(duration, 0, "Calculated pause duration is incorrect");
         }
     }
 

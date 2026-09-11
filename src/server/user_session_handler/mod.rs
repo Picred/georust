@@ -5,7 +5,7 @@ use super::user_state_handler::UserStateHandler;
 use super::repository::server_state::ServerState;
 use G19::utils::coordinates::Coordinates;
 use tokio::sync::mpsc;
-use std::time::Duration; // Necessario per definire l'intervallo di tempo
+use std::time::Duration; // Needed to define time interval
 use super::utils::convert_sql_to_naive_datetime;
 use G19::utils;
 use G19::LogModule;

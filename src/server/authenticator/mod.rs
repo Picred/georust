@@ -24,7 +24,7 @@ impl Authenticator {
     pub fn verify_password(input_password: &[u8], stored_password: String) -> bool {
         let parsed_hash = match PasswordHash::new(&stored_password) {
             Ok(hash) => hash,
-            Err(_) => return false, // Hash nel DB corrotto o non valido
+            Err(_) => return false, // Corrupted or invalid hash in DB
         };
 
         let argon2 = Argon2::default();
