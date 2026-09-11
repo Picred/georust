@@ -1,5 +1,5 @@
 use crate::ConnectionManager;
-use G19::utils::message::Message;
+use georust::utils::message::Message;
 
 pub async fn send(command_params: &[&str], manager: &ConnectionManager) {
     if command_params.len() < 3 {

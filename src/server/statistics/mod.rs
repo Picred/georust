@@ -57,7 +57,7 @@ impl<'a> Statistics<'a> {
         let total_pauses_hours = self.get_pauses_hours_by_user_id(user_id).await?;
 
         println!(
-            "[STATISTICS] Vehicle [{}]: Traveled distance: {:.3} km | Average speed: {:.3} km/h | Total travel duration: {:.3} hours | Total pauses duration: {:.3} ore.",
+            "[STATISTICS] Vehicle [{}]: Traveled distance: {:.3} km | Average speed: {:.3} km/h | Total travel duration: {:.3} hours | Total pauses duration: {:.3} hours.",
             user_id, traveled_distance, average_speed, full_journeys_duration, total_pauses_hours
         );
 
@@ -202,7 +202,7 @@ mod tests {
     async fn setup_db() -> SqlitePool {
         let pool = SqlitePool::connect("sqlite::memory:")
             .await
-            .expect("errore di connessione al db in ram");
+            .expect("RAM database connection error");
 
         sqlx::query(
             "CREATE TABLE users (
@@ -213,7 +213,7 @@ mod tests {
         )
         .execute(&pool)
         .await
-        .expect("impossibile creare la tabella users");
+        .expect("cannot create users table");
 
         sqlx::query(
             "CREATE TABLE IF NOT EXISTS journeys (
@@ -228,13 +228,13 @@ mod tests {
         )
         .execute(&pool)
         .await
-        .expect("impossibile creare la tabella journeys");
+        .expect("cannot create journeys table");
 
-        // Inserimento utente di test per rispettare la Foreign Key
+        // Insert test user to satisfy Foreign Key constraint
         sqlx::query("INSERT INTO users (username, password) VALUES ('test_user', 'psw');")
             .execute(&pool)
             .await
-            .expect("impossibile creare utente di test");
+            .expect("cannot create test user");
 
         pool
     }
@@ -320,7 +320,7 @@ mod tests {
         let repo = JourneysRepository::new(pool);
         let now = Local::now();
         let time_1 = now.format("%Y-%m-%d 10:00:00").to_string();
-        let time_2 = now.format("%Y-%m-%d 12:00:00").to_string(); // Differenza esatta di 2 ore
+        let time_2 = now.format("%Y-%m-%d 12:00:00").to_string(); // Exact difference of 2 hours
         repo.insert_journey_waypoint(1, 45.4642, 9.1900, time_1, false)
             .await
             .unwrap();
@@ -354,7 +354,7 @@ mod tests {
         let repo = JourneysRepository::new(pool);
         let now = Local::now();
         let time_1 = now.format("%Y-%m-%d 10:00:00").to_string();
-        let time_2 = now.format("%Y-%m-%d 12:00:00").to_string(); // 7200 secondi in pausa = 2.00 ore
+        let time_2 = now.format("%Y-%m-%d 12:00:00").to_string(); // 7200 seconds paused = 2.00 hours
         repo.insert_journey_waypoint(1, 45.4642, 9.1900, time_1, true)
             .await
             .unwrap();

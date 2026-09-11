@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use chrono::Utc;
 
 
-use G19::utils::coordinates::{Coordinates};
+use georust::utils::coordinates::{Coordinates};
 
 pub struct CoordGenerator {
     lines: Lines<BufReader<File>>,

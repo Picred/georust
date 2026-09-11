@@ -1,105 +1,104 @@
-# G19 - Georust
+# Georust
 
-## Panoramica
+## Overview
 
-L'applicazione, scritta in Rust, si compone di un server a cui possono connettersi molteplici client (veicoli). Ogni client simula un veicolo in movimento lungo delle coordinate geografiche, inviando periodicamente i propri dati al server (di default ogni 30 secondi). Il server raccoglie tali dati e fornisce gli strumenti per calcolare statistiche dettagliate sui percorsi effettuati.
+The application, written in Rust, consists of a server to which multiple clients (vehicles) can connect. Each client simulates a moving vehicle along geographical coordinates, periodically sending its telemetry data to the server (every 30 seconds by default). The server collects this data and provides tools to calculate detailed statistics on the routes taken.
 
-## Struttura della Repository
+## Repository Structure
 
-La repository è organizzata principalmente nelle seguenti cartelle:
-- `docs/`: contiene la documentazione tecnica e i manuali d'uso per il client e il server.
-- `src/`: contiene tutti i file sorgenti del progetto scritti in Rust.
+The repository is primarily organized into the following directories:
+- `docs/`: contains technical documentation and user manuals for both client and server.
+- `src/`: contains all Rust source files for the project.
 
-## Prerequisiti
+## Prerequisites
 
-Per compilare ed eseguire il progetto, è necessario avere installato il toolchain di Rust, che include **Cargo**.
+To compile and run the project, you need the Rust toolchain installed, which includes **Cargo**.
 
-## Installazione
+## Installation
 
-Per installare l'applicativo, clonare la repository e compilare in modalità *release*:
+To install the application, clone the repository and compile in *release* mode:
 
 ```bash
-git clone <url_repository>
-cd G19
+git clone <repository_url>
+cd georust
 cargo build --release
 ```
 
-## Avvio
+## Running the Application
 
-L'applicazione è composta da due binari distinti: `server` e `client`.
+The application consists of two separate binaries: `server` and `client`.
 
-### Avvio del Server
+### Starting the Server
 
-Avviare sempre il server prima di eventuali client:
+Always start the server before any clients:
 
 ```bash
 cargo run --bin server --release -- [--with-init]
 ```
 
-### Avvio del Client
+### Starting the Client
 
-Per avviare un singolo client:
+To start a single client:
 
 ```bash
-cargo run --bin client --release -- [OPZIONI]
+cargo run --bin client --release -- [OPTIONS]
 ```
 
-Di default, il client cercherà le proprie impostazioni nel file `./config/client_config.json`. È tuttavia possibile sovrascrivere qualsiasi parametro passando degli argomenti da riga di comando. Questo è particolarmente utile, ad esempio, per avviare più veicoli contemporaneamente senza dover modificare il file di configurazione.
+By default, the client looks for its settings in the `./config/client_config.json` file. However, any parameter can be overridden via command-line arguments. This is particularly useful, for example, when launching multiple vehicles simultaneously without modifying the configuration file.
 
-**Opzioni disponibili:**
-- `--config <PATH>`: Specifica un percorso personalizzato per il file JSON di configurazione.
-- `--client-username <NOME>`: Sovrascrive lo username per il login/registrazione.
-- `--client-password <PSW>`: Sovrascrive la password.
-- `--server-url <URL>`: Sovrascrive l'indirizzo del server (es. `ws://127.0.0.1:9001`).
-- `--tick-interval-millis <MS>`: Cambia l'intervallo (in millisecondi) con cui viene inviato ogni punto GPS.
+**Available Options:**
+- `--config <PATH>`: Specifies a custom path for the JSON configuration file.
+- `--client-username <NAME>`: Overrides the username for login/registration.
+- `--client-password <PASSWORD>`: Overrides the password.
+- `--server-url <URL>`: Overrides the server address (e.g., `ws://127.0.0.1:9001`).
+- `--tick-interval-millis <MS>`: Changes the interval (in milliseconds) at which each GPS point is sent.
 
-## Guida Rapida (Esempio di utilizzo)
+## Quick Start (Usage Example)
 
-1. **Avvia il server:** Esegui il comando di avvio del server in un terminale.
-2. **Avvia un client:** Esegui il comando di avvio del client in un altro terminale. Il client si connetterà al server e inizierà a inviare le proprie coordinate GPS in automatico.
-3. **Interazione dal Client:**
-   - Digita il comando `STOP` nel terminale del client per mettere in pausa l'invio delle coordinate.
-4. **Interazione dal Server:** Dal terminale del server, è possibile interagire digitando:
-   - `statistics <id_veicolo> [DAY|WEEK|MONTH]`: calcola i km percorsi, la velocità media del veicolo specificato, la durata totale delle pause e del viaggio stesso.
-   - `send <user_id> <message>`: invia un messaggio di testo a uno specifico veicolo.
-   - `broadcast <messaggio>`: invia un messaggio a tutti i veicoli attualmente connessi.
+1. **Start the server:** Run the server startup command in a terminal.
+2. **Start a client:** Run the client startup command in another terminal. The client will connect to the server and start sending its GPS coordinates automatically.
+3. **Client Interaction:**
+   - Type the `STOP` command in the client terminal to pause sending coordinates.
+4. **Server Interaction:** From the server terminal, you can interact by typing:
+   - `statistics <vehicle_id> [DAY|WEEK|MONTH]`: calculates distance traveled, average speed for the specified vehicle, total pause duration, and trip duration.
+   - `send <user_id> <message>`: sends a text message to a specific vehicle.
+   - `broadcast <message>`: sends a message to all currently connected vehicles.
 
-## Esecuzione della Demo (Script Automatizzato)
+## Running the Demo (Automated Script)
 
-Per avviare rapidamente un ambiente di test completo con il server e molteplici client, è disponibile uno script bash dedicato. 
+A dedicated bash script is available to quickly launch a complete test environment with the server and multiple clients. 
 
 > [!IMPORTANT]
-> Prima di poter utilizzare lo script della demo, è necessario spostarsi sul branch specifico `demo`:
+> Before using the demo script, switch to the specific `demo` branch:
 > ```bash
 > git checkout demo
 > ```
 
-Lo script `./demo.sh` fornisce i seguenti comandi:
+The `./demo.sh` script provides the following commands:
 
-- **Compilazione**: Compila esplicitamente i binari in modalità *release*.
+- **Compilation**: Explicitly compiles the binaries in *release* mode.
   ```bash
   ./demo.sh compile
   ```
-- **Avvio**: Avvia (compilandoli se necessario) il server e il numero `N` di client specificato. I client simuleranno il movimento leggendo dei percorsi predefiniti dalla cartella `./data/`. È possibile cambiare la frequenza di invio (di default a 30000ms).
+- **Start**: Launches (compiling if necessary) the server and `N` specified clients. Clients simulate movement by reading predefined routes from the `./data/` folder. The update frequency can be adjusted (default is 30000ms).
   ```bash
   ./demo.sh start <N> [TICK_INTERVAL_MILLIS]
   ```
   
 > [!WARNING]
-> Allo stato attuale, è possibile avviare al massimo 10 client validi, dato che in `./data/` sono presenti solo 10 file contenenti coordinate valide.
+> Currently, a maximum of 10 valid clients can be started, as `./data/` contains coordinates for only 10 routes.
 
-- **Terminazione**: Interrompe e ripulisce in modo sicuro tutti i processi client avviati dalla demo. Questo passaggio viene richiamato automaticamente anche quando si preme `CTRL+C` dall'avvio, ma ciò comporta la terminazione anche del server.
+- **Cleanup**: Safely stops and cleans up all client processes started by the demo. This step is also triggered automatically when pressing `CTRL+C` during startup, which also terminates the server.
   ```bash
   ./demo.sh cleanup
   ```
 
-## Documentazione
+## Documentation
 
-Per i manuali completi con la spiegazione dettagliata di tutti i parametri di configurazione, i comandi della CLI e le scelte architetturali, fare riferimento ai documenti presenti nella cartella [`docs/`](./docs).
+For full manuals with detailed explanations of all configuration parameters, CLI commands, and architectural design choices, please refer to the documents in the [`docs/`](./docs) folder.
 
-## Autori
+## Authors
 
-- Amedeo Marino
-- Andrei Daniel Stefan
-- Thimoty Paduraru
-- Melissa Massarenti
+- [Amedeo Marino](https://github.com/amedeo03)
+- [Andrei Stefan](https://github.com/picred)
+- [Thimoty Paduraru](https://github.com/timopad)

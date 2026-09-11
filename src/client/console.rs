@@ -4,7 +4,7 @@ use rustyline_async::{Readline, ReadlineError, ReadlineEvent, SharedWriter};
 use tokio::sync::mpsc;
 use tokio_tungstenite::tungstenite::Message;
 
-use G19::utils::message;
+use georust::utils::message;
 
 pub enum ConsoleEvent {
     Start,

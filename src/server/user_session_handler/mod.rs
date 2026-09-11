@@ -3,12 +3,12 @@ use tokio::net::TcpStream;
 use futures_util::StreamExt;
 use super::user_state_handler::UserStateHandler;
 use super::repository::server_state::ServerState;
-use G19::utils::coordinates::Coordinates;
+use georust::utils::coordinates::Coordinates;
 use tokio::sync::mpsc;
-use std::time::Duration; // Necessario per definire l'intervallo di tempo
+use std::time::Duration; // Needed to define time interval
 use super::utils::convert_sql_to_naive_datetime;
-use G19::utils;
-use G19::LogModule;
+use georust::utils;
+use georust::LogModule;
 
 /// Handles the user session by managing:
 /// - ping/pong between client and server (in case the server doesn't receice any message or pong before the timeout, it closes the session)
@@ -40,7 +40,7 @@ pub async fn handle_user_session(
                 if waiting_for_pong {
                     // If the timer ticks again and the vehicle has not responded to the previous Pong,
                     // the connection is considered dead or unstable (e.g., tunnel or signal loss).
-                    G19::warn!(LogModule::UserSessionHandler, "session_closing", "Timeout! Vehicle {} did not respond to Pong. Closing connection.", user_id);
+                    georust::warn!(LogModule::UserSessionHandler, "session_closing", "Timeout! Vehicle {} did not respond to Pong. Closing connection.", user_id);
                     break;
                 }
 
@@ -57,11 +57,11 @@ pub async fn handle_user_session(
                 let msg = match maybe_msg {
                     Some(Ok(m)) => m,
                     Some(Err(e)) => {
-                        G19::error!(LogModule::UserSessionHandler, "connection_error", "Network error from vehicle {}: {:?}", user_id, e);
+                        georust::error!(LogModule::UserSessionHandler, "connection_error", "Network error from vehicle {}: {:?}", user_id, e);
                         break;
                     }
                     None => {
-                        G19::warn!(LogModule::UserSessionHandler, "session_closing", "Data stream for vehicle {} was abruptly interrupted.", user_id);
+                        georust::warn!(LogModule::UserSessionHandler, "session_closing", "Data stream for vehicle {} was abruptly interrupted.", user_id);
                         break;
                     }
                 };
@@ -74,21 +74,15 @@ pub async fn handle_user_session(
 
                 // Handle explicit close frames sent by the client
                 if msg.is_close() {
-                    G19::info!(LogModule::UserSessionHandler, "session_closing", "User {} closed the session with a CLOSE message", user_id);
+                    georust::info!(LogModule::UserSessionHandler, "session_closing", "User {} closed the session with a CLOSE message", user_id);
                     break;
                 }
 
                 // Process text messages
                 if msg.is_text() {
+                
                     let text = msg.to_text().unwrap_or("");
                     
-                    // Immediate check for the STOP command
-                    if text == "STOP" {
-                        let _ = tx.send(Message::Text("Tracking successfully stopped.".into())).await;
-                        G19::info!(LogModule::UserSessionHandler, "session_closing", "User {} closed the session with a STOP message", user_id);
-                        break; // Exits the loop; execution returns to handle_connection for cleanup
-                    }
-
                     // Parsing and inserting coordinates into the SQLite database
                     if let Ok(coords) = serde_json::from_str::<Coordinates>(text) {
 
@@ -108,7 +102,7 @@ pub async fn handle_user_session(
 
                     } else if let Ok(msg) = serde_json::from_str::<utils::message::Message>(text) {
                         // Log the text message
-                        G19::info!(LogModule::UserSessionHandler, "message_receiving", "Message received from user {}: {}", user_id, msg.body);
+                        georust::info!(LogModule::UserSessionHandler, "message_receiving", "Message received from user {}: {}", user_id, msg.body);
                     } else {
                         let _ = tx.send(Message::Text("{\"error\":\"Invalid or unrecognized message format\"}".into())).await;
                     }

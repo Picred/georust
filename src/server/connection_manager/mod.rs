@@ -14,13 +14,13 @@ use super::user_session_handler::handle_user_session;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use super::statistics::{Statistics, RequiredTimeFrame};
 use super::server_messaging;
-use G19::LogModule;
+use georust::LogModule;
 
 
-// struct per la ocmunicazione in fase di login/register
+// Struct for communication during login/register phase
 #[derive(Deserialize)]
 struct AuthRequest {
-    action: String, // "login" o "register"
+    action: String, // "login" or "register"
     username: String,
     password: String,
 }
@@ -64,7 +64,7 @@ impl ConnectionManager {
         }
     }
 
-    // ottenere user_id partendo da socked_id
+    // Get user_id from socket_id
     pub async fn get_user_id_by_socket_id(&self, socket_id: &Uuid) -> Option<i64> {
         let guard = self.sockets.read().await;
         guard.get(socket_id).and_then(|socket| socket.user_id)
@@ -157,17 +157,17 @@ impl ConnectionManager {
             }
         });
 
-        // Loop that spawna tasks to handle each user's connection
-        while let Ok((stream, _)) = listener.accept().await {   // si stabiliste la connessione TCP
+        // Loop that spawns tasks to handle each user's connection
+        while let Ok((stream, _)) = listener.accept().await {   // TCP connection established
 
             let manager = self.clone();
         
             let socket_id = Uuid::new_v4();
-            G19::info!(LogModule::ConnectionManager, "connection_accept", "New TCP connection accepted. Assigned Socket ID: {}", socket_id);
+            georust::info!(LogModule::ConnectionManager, "connection_accept", "New TCP connection accepted. Assigned Socket ID: {}", socket_id);
 
             tokio::spawn(async move {
                 if let Err(e) = manager.handle_connection(stream, socket_id).await {
-                    G19::error!(LogModule::ConnectionManager, "connection_error", "Error handling connection [socket_id: {}]: {:?}", socket_id, e);
+                    georust::error!(LogModule::ConnectionManager, "connection_error", "Error handling connection [socket_id: {}]: {:?}", socket_id, e);
                 }
             });
         }
@@ -227,9 +227,9 @@ impl ConnectionManager {
             // thus interrupting the authentication phase)
             if let Message::Close(frame) = &msg {
                 if let Some(cf) = frame {
-                    G19::warn!(LogModule::ConnectionManager, "connection_closing", "Client disconnected during authentication. Code: {}, Reason: {}", cf.code, cf.reason);
+                    georust::warn!(LogModule::ConnectionManager, "connection_closing", "Client disconnected during authentication. Code: {}, Reason: {}", cf.code, cf.reason);
                 } else {
-                    G19::warn!(LogModule::ConnectionManager, "connection_closing", "Client disconnected during authentication without details");
+                    georust::warn!(LogModule::ConnectionManager, "connection_closing", "Client disconnected during authentication without details");
                 }
                 break; 
             }
@@ -335,7 +335,7 @@ impl ConnectionManager {
 
         // Cleanup to disconession
         self.sockets.write().await.remove(&socket_id);
-        G19::info!(LogModule::ConnectionManager, "connection_closing", "Connection closed: removed socket [{}] from active sockets map", socket_id);
+        georust::info!(LogModule::ConnectionManager, "connection_closing", "Connection closed: removed socket [{}] from active sockets map", socket_id);
 
         Ok(())
     }
