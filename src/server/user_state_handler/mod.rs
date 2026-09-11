@@ -1,4 +1,4 @@
-use G19::utils::coordinates::Coordinates;
+use georust::utils::coordinates::Coordinates;
 use super::utils::convert_sql_to_naive_datetime;
 
 /// Handler is used to manage the calculation of the user's state during the user's session (lifetime of this handler).

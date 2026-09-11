@@ -16,7 +16,7 @@ use tokio::net::TcpListener;
 
 use crate::connection_manager::ConnectionManager;
 
-use G19::utils::logger::{LogLevel, LogModule, Logger};
+use georust::utils::logger::{LogLevel, LogModule, Logger};
 use std::time::Duration;
 
 #[tokio::main]
@@ -29,7 +29,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .await
         .expect("failed to init logger");
 
-    G19::info!(LogModule::Main, "startup", "Georust server starting up");
+    georust::info!(LogModule::Main, "startup", "Georust server starting up");
 
     let pool: Pool<Sqlite> = init_db(reset_tables_flag).await?;
     let manager = Arc::new(ConnectionManager::new(pool));

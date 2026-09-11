@@ -81,7 +81,7 @@ The module uses the asynchronous macro `tokio::select!` to manage the following 
 To verify connection stability and promptly catch silent disconnections (e.g. driving through tunnels or sudden signal loss), the module implements a heartbeat mechanism:
 
 - An asynchronous timer (`ping_interval`) is configured to fire every 10 seconds. It uses the `MissedTickBehavior::Skip` policy to prevent server slowdowns from accumulating backed-up ticks and firing them all at once.
-- On every timer tick, if the client has not yet responded to the previous Ping (`waiting_for_pong` flag equals `true`), the connection is considered unstable or dropped; the server logs the timeout via `G19::warn!` and exits the loop, closing the session.
+- On every timer tick, if the client has not yet responded to the previous Ping (`waiting_for_pong` flag equals `true`), the connection is considered unstable or dropped; the server logs the timeout via `georust::warn!` and exits the loop, closing the session.
 - If the client was responsive, the server sends a new `Ping` frame via the `tx` channel and sets the `waiting_for_pong` flag to `true`. When the client responds with a `Pong` frame, the flag is reset.
 
 #### 2. Packet Reception from Client
@@ -156,7 +156,7 @@ The journeys repository module manages persistent read and write operations on t
 
 Key capabilities provided by the repository:
 
-- **insert_journey_waypoint**: saves a single tracking point (waypoint) sent by a client to the database. After SQL insert query execution, a debug event is logged via `G19::debug!` to trace stored data.
+- **insert_journey_waypoint**: saves a single tracking point (waypoint) sent by a client to the database. After SQL insert query execution, a debug event is logged via `georust::debug!` to trace stored data.
 
 - **get_full_journey_by_user_id**: retrieves the complete list of all geographic points recorded for a given user since the start of their trips.
 

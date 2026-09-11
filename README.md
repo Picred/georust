@@ -1,4 +1,4 @@
-# G19 - Georust
+# Georust
 
 ## Overview
 
@@ -20,7 +20,7 @@ To install the application, clone the repository and compile in *release* mode:
 
 ```bash
 git clone <repository_url>
-cd G19
+cd georust
 cargo build --release
 ```
 

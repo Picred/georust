@@ -1,6 +1,6 @@
 use sqlx::{Pool, Sqlite};
 use crate::models::journey_waypoint::JourneyWaypoint;
-use G19::LogModule;
+use georust::LogModule;
 
 /// Repository responsible for journey waypoints persistence in SQLite.
 pub struct JourneysRepository {
@@ -38,7 +38,7 @@ impl JourneysRepository {
             .execute(&self.pool)
             .await?;
 
-        G19::debug!(LogModule::JourneysRepository, "journey_waypoint_stored", "Inserted into DB: {}, {}, {}, {}, {}", user_id, lat, lon, created_at, is_stopped);
+        georust::debug!(LogModule::JourneysRepository, "journey_waypoint_stored", "Inserted into DB: {}, {}, {}, {}, {}", user_id, lat, lon, created_at, is_stopped);
         
         Ok(())
     }
